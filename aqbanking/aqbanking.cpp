@@ -60,6 +60,7 @@ typedef struct {
 	PyObject *purpose;
 	PyObject *value;
 	PyObject *currency;
+	int state;
 
 } aqbanking_Transaction;
 
@@ -103,7 +104,6 @@ int AB_create(aqbanking_Account *acct = NULL) {
 		GWEN_Gui_SetGetPasswordFn(this->gui, zPasswordFn);*/
 
 		return 0;
-
 }
 
 int AB_free(aqbanking_Account *acct = NULL) {
@@ -235,6 +235,8 @@ static PyObject *aqbanking_Transaction_New(PyTypeObject *type, PyObject *args, P
 			Py_DECREF(self);
 			return NULL;
 		}
+
+		self->state = 0;
 	}
 
 	return (PyObject *)self;
@@ -323,6 +325,7 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"purpose", T_OBJECT_EX, offsetof(aqbanking_Transaction, purpose), 0, "Purpose of transaction"},
 	{"value", T_OBJECT_EX, offsetof(aqbanking_Transaction, value), 0, "Value"},
 	{"currency", T_OBJECT_EX, offsetof(aqbanking_Transaction, currency), 0, "Currency (by default EUR)"},
+	{"state", T_INT, offsetof(aqbanking_Transaction, state), 0, "State of the transaction"},
 	{NULL}
 };
 
@@ -609,12 +612,20 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	return Py_BuildValue("(d,s)", balance, "EUR");
 }
 
-static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObject *args, PyObject *keywds)
+static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObject *args, PyObject *kwds)
 {
 	int rv;
 	double tmpDateTime = 0;
 	const char *bank_code = PyUnicode_AsUTF8(self->bank_code);
 	const char *account_no = PyUnicode_AsUTF8(self->no);
+	GWEN_TIME *gwTime;
+	const char *dateFrom=NULL, *dateTo=NULL;
+	static char *kwlist[] = {"dateFrom", "dateTo", NULL};
+	if (! PyArg_ParseTupleAndKeywords(args, kwds, "|ss", kwlist, &dateFrom, &dateTo))
+	{
+		return NULL;
+	}
+
 	AB_ACCOUNT *a;
 	AB_JOB *job = 0;
 	AB_JOB_LIST2 *jl = 0;
@@ -652,6 +663,16 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 	// Create job and execute it.
 	job = AB_JobGetTransactions_new(a);
+	if (dateFrom != NULL)
+	{
+		gwTime = GWEN_Time_fromString(dateFrom, "YYYYMMDD");
+		AB_JobGetTransactions_SetFromTime(job, gwTime);
+	}
+	if (dateTo != NULL)
+	{
+		gwTime = GWEN_Time_fromString(dateTo, "YYYYMMDD");
+		AB_JobGetTransactions_SetToTime(job, gwTime);
+	}
 	// Check for availability
 	rv = AB_Job_CheckAvailability(job);
 	if (rv) {
@@ -680,7 +701,8 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 		
 		t=AB_ImExporterAccountInfo_GetFirstTransaction(ai);
 		while(t) {
-			const AB_VALUE *v; 
+			const AB_VALUE *v;
+			AB_TRANSACTION_STATUS state;
 
 			v=AB_Transaction_GetValue(t);
 			if (v) {
@@ -771,6 +793,41 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
 				trans->currency = PyUnicode_FromString("EUR");
+				trans->state = 0;
+				state = AB_Transaction_GetStatus(t);
+				switch(state)
+				{
+					case AB_Transaction_StatusUnknown:
+						trans->state = -1;
+						break;
+					case AB_Transaction_StatusNone:
+						trans->state = 0;
+						break;
+					case AB_Transaction_StatusAccepted:
+						trans->state = 1;
+						break;
+					case AB_Transaction_StatusRejected:
+						trans->state = 2;
+						break;
+					case AB_Transaction_StatusPending:
+						trans->state = 4;
+						break;
+					case AB_Transaction_StatusSending:
+						trans->state = 8;
+						break;
+					case AB_Transaction_StatusAutoReconciled:
+						trans->state = 16;
+						break;
+					case AB_Transaction_StatusManuallyReconciled:
+						trans->state = 32;
+						break;
+					case AB_Transaction_StatusRevoked:
+						trans->state = 64;
+						break;
+					case AB_Transaction_StatusAborted:
+						trans->state = 128;
+						break;
+				}
 
 				PyList_Append(transList, (PyObject *)trans);
 				Py_DECREF(trans);
