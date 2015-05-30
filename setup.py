@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 
 # for some more beautiful output:
-#import os
+import os
 #os.environ["CC"] = "g++-4.9.2" 
 #os.environ["CXX"] = "g++-4.9.2" 
 
@@ -22,7 +22,7 @@ setup (name = 'python-aqbanking',
        description = 'This is a python wrapper for AqBanking',
        long_description = read('README'),
        license = 'GPLv3+',
-       keywords = 'aqbanking banking hbci financial'
+       keywords = 'aqbanking banking hbci financial',
        author = 'Lukas Schreiner',
        author_email = 'dev@lschreiner.de',
        url = 'https://github.com/monofox/python-aqbanking',
