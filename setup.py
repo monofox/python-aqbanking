@@ -18,7 +18,7 @@ module1 = Extension('aqbanking',
                     sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp'])
 
 setup (name = 'python-aqbanking',
-       version = '0.0.1',
+       version = '0.0.2',
        description = 'This is a python wrapper for AqBanking',
        long_description = read('README.md'),
        license = 'GPLv3+',
