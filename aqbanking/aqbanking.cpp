@@ -1039,28 +1039,9 @@ static PyObject *aqbanking_chkiban(PyObject *self, PyObject *args)
 	}
 }
 
-/**
- * TODO: some kind of testing!!!!
- */
-static PyObject *aqbanking_hello(PyObject *self, PyObject *args)
-{
-	// Time to call our callback!
-	PyObject *result;
-	PyObject *arglist = Py_BuildValue("(s)", "Hello World!!!!");
-	result = PyObject_CallObject(aqh->callbackLog, arglist);
-	Py_DECREF(arglist);
-
-	// So we need a result! So now lets check it.
-	if (result == NULL)
-		return NULL;
-
-	return result;
-}
-
 static PyMethodDef AqBankingMethods[] = {
 	{"listacc", aqbanking_listacc, METH_VARARGS, "Get a list of accounts"},
 	{"chkiban", aqbanking_chkiban, METH_VARARGS, "Validates an IBAN"},
-	{"hello", aqbanking_hello, METH_VARARGS, "Triggers a hello world to callback."},
 
 	{NULL, NULL, 0, NULL}
 };

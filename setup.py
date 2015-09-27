@@ -2,8 +2,8 @@ from setuptools import setup, Extension
 
 # for some more beautiful output:
 import os
-#os.environ["CC"] = "g++-4.9.2" 
-#os.environ["CXX"] = "g++-4.9.2" 
+#os.environ["CC"] = "g++-4.9.2"
+#os.environ["CXX"] = "g++-4.9.2"
 
 # retrieve the README
 def read(fname):
@@ -11,16 +11,16 @@ def read(fname):
 
 module1 = Extension('aqbanking',
                     libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
-                    include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5'],
+                    include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5', '/usr/local/include/gwenhywfar4', '/usr/local/include/aqbanking5'],
                     # for compiling debug:
 					#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function'],
-					extra_compile_args=['-Wunused-variable', '-std=gnu++11', '-Wunused-function'],
+					extra_compile_args=['-Wunused-variable', '-Wunused-function'],
                     sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp'])
 
 setup (name = 'python-aqbanking',
        version = '0.0.1',
        description = 'This is a python wrapper for AqBanking',
-       long_description = read('README'),
+       long_description = read('README.md'),
        license = 'GPLv3+',
        keywords = 'aqbanking banking hbci financial',
        author = 'Lukas Schreiner',
