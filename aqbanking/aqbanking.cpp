@@ -761,10 +761,13 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				if (AB_Transaction_GetLocalIban(t) == NULL) {
 					trans->localIban = Py_None;
 					Py_INCREF(Py_None);
+				} else {
+					trans->localIban = PyUnicode_FromString(AB_Transaction_GetLocalIban(t));
+				}
+				if (AB_Transaction_GetLocalBic(t) == NULL) {
 					trans->localBic = Py_None;
 					Py_INCREF(Py_None);
 				} else {
-					trans->localIban = PyUnicode_FromString(AB_Transaction_GetLocalIban(t));
 					trans->localBic = PyUnicode_FromString(AB_Transaction_GetLocalBic(t));
 				}
 
@@ -784,10 +787,13 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				if (AB_Transaction_GetRemoteIban(t) == NULL) {
 					trans->remoteIban = Py_None;
 					Py_INCREF(Py_None);
+				} else {
+					trans->remoteIban = PyUnicode_FromString(AB_Transaction_GetRemoteIban(t));
+				}
+				if (AB_Transaction_GetRemoteBic(t) == NULL) {
 					trans->remoteBic = Py_None;
 					Py_INCREF(Py_None);
 				} else {
-					trans->remoteIban = PyUnicode_FromString(AB_Transaction_GetRemoteIban(t));
 					trans->remoteBic = PyUnicode_FromString(AB_Transaction_GetRemoteBic(t));
 				}
 
@@ -832,6 +838,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				PyList_Append(transList, (PyObject *)trans);
 				Py_DECREF(trans);
 			}
+                  
 		  t = AB_ImExporterAccountInfo_GetNextTransaction(ai);
 		} 
 		ai = AB_ImExporterContext_GetNextAccountInfo(ctx);
