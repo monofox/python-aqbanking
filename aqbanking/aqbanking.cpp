@@ -65,6 +65,9 @@ typedef struct {
 	PyObject *currency;
         PyObject *transactionCode;
         PyObject *transactionText;
+        PyObject *textKey;
+        PyObject *textKeyExt;
+        PyObject *sepaMandateId;
 	int state;
 
 } aqbanking_Transaction;
@@ -164,6 +167,9 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->currency);
 	Py_XDECREF(self->transactionCode);
 	Py_XDECREF(self->transactionText);
+        Py_XDECREF(self->textKey);
+        Py_XDECREF(self->textKeyExt);
+        Py_XDECREF(self->sepaMandateId);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -352,8 +358,11 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"value", T_OBJECT_EX, offsetof(aqbanking_Transaction, value), 0, "Value"},
 	{"currency", T_OBJECT_EX, offsetof(aqbanking_Transaction, currency), 0, "Currency (by default EUR)"},
 	{"state", T_INT, offsetof(aqbanking_Transaction, state), 0, "State of the transaction"},
-	{"transactionCode", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionCode), 0, "Transaction Code (Geschäftsvorfallcode)"},
+	{"transactionCode", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionCode), 0, "A 3-digit transaction code (Geschäftsvorfallcode)"},
 	{"transactionText", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionText), 0, "Text representing the kind of transaction"},
+	{"textKey", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKey), 0, "A numerical transaction code (Textschlüssel)"},
+	{"textKeyExt", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKeyExt), 0, "An extension to the text key (Textschlüsselergänzung)"},
+	{"sepaMandateId", T_OBJECT_EX, offsetof(aqbanking_Transaction, sepaMandateId), 0, "Mandate ID of a SEPA mandate for SEPA direct debits"},
 	{NULL}
 };
 
@@ -850,6 +859,13 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				trans->currency = PyUnicode_FromString("EUR");
                                 trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
                                 trans->transactionCode = PyLong_FromLong(AB_Transaction_GetTransactionCode(t));
+                                trans->textKey = PyLong_FromLong(AB_Transaction_GetTextKey(t));
+                                trans->textKeyExt = PyLong_FromLong(AB_Transaction_GetTextKeyExt(t));
+                                if (AB_Transaction_GetMandateId(t) == NULL) {
+                                    trans->sepaMandateId = Py_None;
+                                } else {
+                                    trans->sepaMandateId = PyUnicode_FromString(AB_Transaction_GetMandateId(t));
+                                }
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
 				switch(state)
