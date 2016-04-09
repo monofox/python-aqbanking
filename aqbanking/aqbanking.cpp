@@ -49,17 +49,25 @@ typedef struct {
 typedef struct {
 	PyObject_HEAD
 	PyObject *date;
+        PyObject *valutaDate;
 	PyObject *localAccount;
 	PyObject *localBank;
 	PyObject *localIban;
 	PyObject *localBic;
+	PyObject *localName;
 	PyObject *remoteAccount;
 	PyObject *remoteBank;
 	PyObject *remoteIban;
 	PyObject *remoteBic;
+	PyObject *remoteName;
 	PyObject *purpose;
 	PyObject *value;
 	PyObject *currency;
+        PyObject *transactionCode;
+        PyObject *transactionText;
+        PyObject *textKey;
+        PyObject *textKeyExt;
+        PyObject *sepaMandateId;
 	int state;
 
 } aqbanking_Transaction;
@@ -143,17 +151,25 @@ int AB_free(aqbanking_Account *acct = NULL) {
 static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 {
 	Py_XDECREF(self->date);
+	Py_XDECREF(self->valutaDate);
 	Py_XDECREF(self->localAccount);
 	Py_XDECREF(self->localBank);
 	Py_XDECREF(self->localIban);
 	Py_XDECREF(self->localBic);
+	Py_XDECREF(self->localName);
 	Py_XDECREF(self->remoteAccount);
 	Py_XDECREF(self->remoteBank);
 	Py_XDECREF(self->remoteIban);
 	Py_XDECREF(self->remoteBic);
+	Py_XDECREF(self->remoteName);
 	Py_XDECREF(self->purpose);
 	Py_XDECREF(self->value);
 	Py_XDECREF(self->currency);
+	Py_XDECREF(self->transactionCode);
+	Py_XDECREF(self->transactionText);
+        Py_XDECREF(self->textKey);
+        Py_XDECREF(self->textKeyExt);
+        Py_XDECREF(self->sepaMandateId);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -165,6 +181,12 @@ static PyObject *aqbanking_Transaction_New(PyTypeObject *type, PyObject *args, P
 	if (self != NULL) {
 		self->date = PyUnicode_FromString("");
 		if (self->date == NULL) {
+			Py_DECREF(self);
+			return NULL;
+		}
+
+		self->valutaDate = PyUnicode_FromString("");
+		if (self->valutaDate == NULL) {
 			Py_DECREF(self);
 			return NULL;
 		}
@@ -244,11 +266,11 @@ static PyObject *aqbanking_Transaction_New(PyTypeObject *type, PyObject *args, P
 
 static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *args, PyObject *kwds)
 {
-	PyObject *date=NULL, *localIban=NULL, *localBic=NULL, *remoteIban=NULL, *remoteBic=NULL;
+	PyObject *date=NULL, *valutaDate=NULL, *localIban=NULL, *localBic=NULL, *remoteIban=NULL, *remoteBic=NULL;
 	PyObject *purpose=NULL, *value=NULL, *currency=NULL, *tmp;
-	static char *kwlist[] = {"date", "localIban", "localBic", "remoteIban", "remoteBic", "purpose", "value", "currency", NULL};
+	static char *kwlist[] = {"date", "valutaDate", "localIban", "localBic", "remoteIban", "remoteBic", "purpose", "value", "currency", NULL};
 	if (! PyArg_ParseTupleAndKeywords(args, kwds, "|OOOOOOOO", kwlist,
-									  &date, &localIban, &localBic, &remoteIban, &remoteBic, purpose, value, currency))
+									  &date, &valutaDate, &localIban, &localBic, &remoteIban, &remoteBic, purpose, value, currency))
 	{
 		return -1;
 	}
@@ -257,6 +279,13 @@ static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *arg
 		tmp = self->date;
 		Py_INCREF(date);
 		self->date = date;
+		Py_XDECREF(tmp);
+	}
+
+	if (valutaDate) {
+		tmp = self->valutaDate;
+		Py_INCREF(valutaDate);
+		self->valutaDate = valutaDate;
 		Py_XDECREF(tmp);
 	}
 
@@ -314,18 +343,26 @@ static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *arg
 
 static PyMemberDef aqbanking_Transaction_members[] = {
 	{"date", T_OBJECT_EX, offsetof(aqbanking_Transaction, date), 0, "Date of transaction"},
+	{"valutaDate", T_OBJECT_EX, offsetof(aqbanking_Transaction, valutaDate), 0, "Valuta Date of transaction"},
 	{"localAccount", T_OBJECT_EX, offsetof(aqbanking_Transaction, localAccount), 0, "Local account no."},
 	{"localBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, localBank), 0, "Local bank code"},
 	{"localIban", T_OBJECT_EX, offsetof(aqbanking_Transaction, localIban), 0, "Local IBAN"},
 	{"localBic", T_OBJECT_EX, offsetof(aqbanking_Transaction, localBic), 0, "Local BIC"},
+	{"localName", T_OBJECT_EX, offsetof(aqbanking_Transaction, localName), 0, "Local owner of the bank account"},
 	{"remoteAccount", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteAccount), 0, "Remote account no."},
-	{"remoteBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteBank), 0, "Remote8 bank code"},
+	{"remoteBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteBank), 0, "Remote bank code"},
 	{"remoteIban", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteIban), 0, "Remote IBAN"},
 	{"remoteBic", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteBic), 0, "Remote BIC"},
+	{"remoteName", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteName), 0, "Remote owner of the bank account"},
 	{"purpose", T_OBJECT_EX, offsetof(aqbanking_Transaction, purpose), 0, "Purpose of transaction"},
 	{"value", T_OBJECT_EX, offsetof(aqbanking_Transaction, value), 0, "Value"},
 	{"currency", T_OBJECT_EX, offsetof(aqbanking_Transaction, currency), 0, "Currency (by default EUR)"},
 	{"state", T_INT, offsetof(aqbanking_Transaction, state), 0, "State of the transaction"},
+	{"transactionCode", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionCode), 0, "A 3-digit transaction code (Geschäftsvorfallcode)"},
+	{"transactionText", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionText), 0, "Text representing the kind of transaction"},
+	{"textKey", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKey), 0, "A numerical transaction code (Textschlüssel)"},
+	{"textKeyExt", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKeyExt), 0, "An extension to the text key (Textschlüsselergänzung)"},
+	{"sepaMandateId", T_OBJECT_EX, offsetof(aqbanking_Transaction, sepaMandateId), 0, "Mandate ID of a SEPA mandate for SEPA direct debits"},
 	{NULL}
 };
 
@@ -709,6 +746,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				const GWEN_STRINGLIST *sl;
 				const GWEN_TIME *tdtime;
 				const char *purpose;
+				const char *remoteName;
 				aqbanking_Transaction *trans = (aqbanking_Transaction*) _PyObject_New(&aqbanking_TransactionType);
 				trans = (aqbanking_Transaction*) PyObject_Init((PyObject *)trans, &aqbanking_TransactionType);
 				//trans = PyObject_CallObject((PyObject *)&aqbanking_TransactionType, NULL);
@@ -741,8 +779,10 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 				tdtime = AB_Transaction_GetDate(t);
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
-				// FIXME: later PyDateTime_FromTimestamp??
-				trans->date = PyDateTime_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
+				trans->date = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
+				tdtime = AB_Transaction_GetValutaDate(t);
+				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
+				trans->valutaDate = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
 				trans->purpose = PyUnicode_FromString(purpose);
 
 				// Local user
@@ -770,6 +810,12 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				} else {
 					trans->localBic = PyUnicode_FromString(AB_Transaction_GetLocalBic(t));
 				}
+				if (AB_Transaction_GetLocalName(t) == NULL) {
+					trans->localName = Py_None;
+					Py_INCREF(Py_None);
+				} else {
+				        trans->localName = PyUnicode_FromString(AB_Transaction_GetLocalName(t));
+				}
 
 				// Remote user
 				if (AB_Transaction_GetRemoteAccountNumber(t) == NULL) {
@@ -796,9 +842,30 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				} else {
 					trans->remoteBic = PyUnicode_FromString(AB_Transaction_GetRemoteBic(t));
 				}
+				if (AB_Transaction_GetRemoteName(t) == NULL) {
+					trans->remoteName = Py_None;
+					Py_INCREF(Py_None);
+				} else {
+                                        sl = AB_Transaction_GetRemoteName(t);
+                                        remoteName = GWEN_StringList_FirstString(sl);
+                                        if (remoteName == NULL) {
+                                            trans->remoteName = Py_None;
+                                        } else {
+					    trans->remoteName = PyUnicode_FromString(remoteName);
+                                        }
+				}
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
 				trans->currency = PyUnicode_FromString("EUR");
+                                trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
+                                trans->transactionCode = PyLong_FromLong(AB_Transaction_GetTransactionCode(t));
+                                trans->textKey = PyLong_FromLong(AB_Transaction_GetTextKey(t));
+                                trans->textKeyExt = PyLong_FromLong(AB_Transaction_GetTextKeyExt(t));
+                                if (AB_Transaction_GetMandateId(t) == NULL) {
+                                    trans->sepaMandateId = Py_None;
+                                } else {
+                                    trans->sepaMandateId = PyUnicode_FromString(AB_Transaction_GetMandateId(t));
+                                }
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
 				switch(state)
