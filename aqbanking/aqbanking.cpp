@@ -49,6 +49,7 @@ typedef struct {
 typedef struct {
 	PyObject_HEAD
 	PyObject *date;
+        PyObject *valutaDate;
 	PyObject *localAccount;
 	PyObject *localBank;
 	PyObject *localIban;
@@ -143,6 +144,7 @@ int AB_free(aqbanking_Account *acct = NULL) {
 static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 {
 	Py_XDECREF(self->date);
+	Py_XDECREF(self->valutaDate);
 	Py_XDECREF(self->localAccount);
 	Py_XDECREF(self->localBank);
 	Py_XDECREF(self->localIban);
@@ -165,6 +167,12 @@ static PyObject *aqbanking_Transaction_New(PyTypeObject *type, PyObject *args, P
 	if (self != NULL) {
 		self->date = PyUnicode_FromString("");
 		if (self->date == NULL) {
+			Py_DECREF(self);
+			return NULL;
+		}
+
+		self->valutaDate = PyUnicode_FromString("");
+		if (self->valutaDate == NULL) {
 			Py_DECREF(self);
 			return NULL;
 		}
@@ -244,11 +252,11 @@ static PyObject *aqbanking_Transaction_New(PyTypeObject *type, PyObject *args, P
 
 static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *args, PyObject *kwds)
 {
-	PyObject *date=NULL, *localIban=NULL, *localBic=NULL, *remoteIban=NULL, *remoteBic=NULL;
+	PyObject *date=NULL, *valutaDate=NULL, *localIban=NULL, *localBic=NULL, *remoteIban=NULL, *remoteBic=NULL;
 	PyObject *purpose=NULL, *value=NULL, *currency=NULL, *tmp;
-	static char *kwlist[] = {"date", "localIban", "localBic", "remoteIban", "remoteBic", "purpose", "value", "currency", NULL};
+	static char *kwlist[] = {"date", "valutaDate", "localIban", "localBic", "remoteIban", "remoteBic", "purpose", "value", "currency", NULL};
 	if (! PyArg_ParseTupleAndKeywords(args, kwds, "|OOOOOOOO", kwlist,
-									  &date, &localIban, &localBic, &remoteIban, &remoteBic, purpose, value, currency))
+									  &date, &valutaDate, &localIban, &localBic, &remoteIban, &remoteBic, purpose, value, currency))
 	{
 		return -1;
 	}
@@ -257,6 +265,13 @@ static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *arg
 		tmp = self->date;
 		Py_INCREF(date);
 		self->date = date;
+		Py_XDECREF(tmp);
+	}
+
+	if (valutaDate) {
+		tmp = self->valutaDate;
+		Py_INCREF(valutaDate);
+		self->valutaDate = valutaDate;
 		Py_XDECREF(tmp);
 	}
 
@@ -314,6 +329,7 @@ static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *arg
 
 static PyMemberDef aqbanking_Transaction_members[] = {
 	{"date", T_OBJECT_EX, offsetof(aqbanking_Transaction, date), 0, "Date of transaction"},
+	{"valutaDate", T_OBJECT_EX, offsetof(aqbanking_Transaction, valutaDate), 0, "Valuta Date of transaction"},
 	{"localAccount", T_OBJECT_EX, offsetof(aqbanking_Transaction, localAccount), 0, "Local account no."},
 	{"localBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, localBank), 0, "Local bank code"},
 	{"localIban", T_OBJECT_EX, offsetof(aqbanking_Transaction, localIban), 0, "Local IBAN"},
@@ -741,8 +757,10 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 				tdtime = AB_Transaction_GetDate(t);
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
-				// FIXME: later PyDateTime_FromTimestamp??
-				trans->date = PyDateTime_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
+				trans->date = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
+				tdtime = AB_Transaction_GetValutaDate(t);
+				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
+				trans->valutaDate = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
 				trans->purpose = PyUnicode_FromString(purpose);
 
 				// Local user
