@@ -63,6 +63,8 @@ typedef struct {
 	PyObject *purpose;
 	PyObject *value;
 	PyObject *currency;
+        PyObject *transactionCode;
+        PyObject *transactionText;
 	int state;
 
 } aqbanking_Transaction;
@@ -160,6 +162,8 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->purpose);
 	Py_XDECREF(self->value);
 	Py_XDECREF(self->currency);
+	Py_XDECREF(self->transactionCode);
+	Py_XDECREF(self->transactionText);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -348,6 +352,8 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"value", T_OBJECT_EX, offsetof(aqbanking_Transaction, value), 0, "Value"},
 	{"currency", T_OBJECT_EX, offsetof(aqbanking_Transaction, currency), 0, "Currency (by default EUR)"},
 	{"state", T_INT, offsetof(aqbanking_Transaction, state), 0, "State of the transaction"},
+	{"transactionCode", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionCode), 0, "Transaction Code (Geschäftsvorfallcode)"},
+	{"transactionText", T_OBJECT_EX, offsetof(aqbanking_Transaction, transactionText), 0, "Text representing the kind of transaction"},
 	{NULL}
 };
 
@@ -842,6 +848,8 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
 				trans->currency = PyUnicode_FromString("EUR");
+                                trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
+                                trans->transactionCode = PyLong_FromLong(AB_Transaction_GetTransactionCode(t));
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
 				switch(state)
