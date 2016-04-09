@@ -54,10 +54,12 @@ typedef struct {
 	PyObject *localBank;
 	PyObject *localIban;
 	PyObject *localBic;
+	PyObject *localName;
 	PyObject *remoteAccount;
 	PyObject *remoteBank;
 	PyObject *remoteIban;
 	PyObject *remoteBic;
+	PyObject *remoteName;
 	PyObject *purpose;
 	PyObject *value;
 	PyObject *currency;
@@ -149,10 +151,12 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->localBank);
 	Py_XDECREF(self->localIban);
 	Py_XDECREF(self->localBic);
+	Py_XDECREF(self->localName);
 	Py_XDECREF(self->remoteAccount);
 	Py_XDECREF(self->remoteBank);
 	Py_XDECREF(self->remoteIban);
 	Py_XDECREF(self->remoteBic);
+	Py_XDECREF(self->remoteName);
 	Py_XDECREF(self->purpose);
 	Py_XDECREF(self->value);
 	Py_XDECREF(self->currency);
@@ -334,10 +338,12 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"localBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, localBank), 0, "Local bank code"},
 	{"localIban", T_OBJECT_EX, offsetof(aqbanking_Transaction, localIban), 0, "Local IBAN"},
 	{"localBic", T_OBJECT_EX, offsetof(aqbanking_Transaction, localBic), 0, "Local BIC"},
+	{"localName", T_OBJECT_EX, offsetof(aqbanking_Transaction, localName), 0, "Local owner of the bank account"},
 	{"remoteAccount", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteAccount), 0, "Remote account no."},
-	{"remoteBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteBank), 0, "Remote8 bank code"},
+	{"remoteBank", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteBank), 0, "Remote bank code"},
 	{"remoteIban", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteIban), 0, "Remote IBAN"},
 	{"remoteBic", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteBic), 0, "Remote BIC"},
+	{"remoteName", T_OBJECT_EX, offsetof(aqbanking_Transaction, remoteName), 0, "Remote owner of the bank account"},
 	{"purpose", T_OBJECT_EX, offsetof(aqbanking_Transaction, purpose), 0, "Purpose of transaction"},
 	{"value", T_OBJECT_EX, offsetof(aqbanking_Transaction, value), 0, "Value"},
 	{"currency", T_OBJECT_EX, offsetof(aqbanking_Transaction, currency), 0, "Currency (by default EUR)"},
@@ -725,6 +731,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				const GWEN_STRINGLIST *sl;
 				const GWEN_TIME *tdtime;
 				const char *purpose;
+				const char *remoteName;
 				aqbanking_Transaction *trans = (aqbanking_Transaction*) _PyObject_New(&aqbanking_TransactionType);
 				trans = (aqbanking_Transaction*) PyObject_Init((PyObject *)trans, &aqbanking_TransactionType);
 				//trans = PyObject_CallObject((PyObject *)&aqbanking_TransactionType, NULL);
@@ -788,6 +795,12 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				} else {
 					trans->localBic = PyUnicode_FromString(AB_Transaction_GetLocalBic(t));
 				}
+				if (AB_Transaction_GetLocalName(t) == NULL) {
+					trans->localName = Py_None;
+					Py_INCREF(Py_None);
+				} else {
+				        trans->localName = PyUnicode_FromString(AB_Transaction_GetLocalName(t));
+				}
 
 				// Remote user
 				if (AB_Transaction_GetRemoteAccountNumber(t) == NULL) {
@@ -813,6 +826,18 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					Py_INCREF(Py_None);
 				} else {
 					trans->remoteBic = PyUnicode_FromString(AB_Transaction_GetRemoteBic(t));
+				}
+				if (AB_Transaction_GetRemoteName(t) == NULL) {
+					trans->remoteName = Py_None;
+					Py_INCREF(Py_None);
+				} else {
+                                        sl = AB_Transaction_GetRemoteName(t);
+                                        remoteName = GWEN_StringList_FirstString(sl);
+                                        if (remoteName == NULL) {
+                                            trans->remoteName = Py_None;
+                                        } else {
+					    trans->remoteName = PyUnicode_FromString(remoteName);
+                                        }
 				}
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
