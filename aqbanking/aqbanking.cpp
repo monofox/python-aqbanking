@@ -709,9 +709,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				const GWEN_STRINGLIST *sl;
 				const GWEN_TIME *tdtime;
 				const char *purpose;
-				aqbanking_Transaction *trans = (aqbanking_Transaction*) _PyObject_New(&aqbanking_TransactionType);
-				trans = (aqbanking_Transaction*) PyObject_Init((PyObject *)trans, &aqbanking_TransactionType);
-				//trans = PyObject_CallObject((PyObject *)&aqbanking_TransactionType, NULL);
+				aqbanking_Transaction *trans = (aqbanking_Transaction*) PyObject_CallObject((PyObject *) &aqbanking_TransactionType, NULL);
 
 				/* The purpose (memo field) might contain multiple lines.
 				 * Therefore AqBanking stores the purpose in a string list
@@ -960,8 +958,7 @@ static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 			a=AB_Account_List2Iterator_Data(it);
 			while(a) {
 				AB_PROVIDER *pro;
-				account = (aqbanking_Account*) _PyObject_New(&aqbanking_AccountType);
-				account = (aqbanking_Account*) PyObject_Init((PyObject *)account, &aqbanking_AccountType);
+				account = (aqbanking_Account*) PyObject_CallObject((PyObject *) &aqbanking_AccountType, NULL);
 
 				/* every account is assigned to a backend (sometimes called provider)
 				 * which actually performs online banking tasks. We get a pointer
