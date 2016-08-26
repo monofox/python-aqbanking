@@ -859,7 +859,11 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
 				trans->currency = PyUnicode_FromString("EUR");
-				trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
+                                if (AB_Transaction_GetTransactionText(t) == NULL) {
+                                    trans->transactionText = PyUnicode_FromString("");
+                                } else {
+				    trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
+                                }
 				trans->transactionCode = PyLong_FromLong(AB_Transaction_GetTransactionCode(t));
 				trans->textKey = PyLong_FromLong(AB_Transaction_GetTextKey(t));
 				trans->textKeyExt = PyLong_FromLong(AB_Transaction_GetTextKeyExt(t));
