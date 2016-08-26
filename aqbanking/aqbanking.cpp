@@ -585,8 +585,17 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	const AB_VALUE *v = 0;
 	int rv;
 	double balance;
-	const char *bank_code = PyUnicode_AsUTF8(self->bank_code);
-	const char *account_no = PyUnicode_AsUTF8(self->no);
+	const char *bank_code; 
+	const char *account_no; 
+#if PY_VERSION_HEX >= 0x03030000
+	bank_code = PyUnicode_AsUTF8(self->bank_code);
+	account_no = PyUnicode_AsUTF8(self->no);
+#else
+	PyObject *s = _PyUnicode_AsDefaultEncodedString(self->bank_code, NULL);
+	bank_code = PyBytes_AS_STRING(s);
+	*s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
+	account_no = PyBytes_AS_STRING(s);
+#endif
 	AB_ACCOUNT *a;
 	AB_JOB *job = 0;
 	AB_JOB_LIST2 *jl = 0;
@@ -657,8 +666,17 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 {
 	int rv;
 	double tmpDateTime = 0;
-	const char *bank_code = PyUnicode_AsUTF8(self->bank_code);
-	const char *account_no = PyUnicode_AsUTF8(self->no);
+	const char *bank_code;
+	const char *account_no;
+#if PY_VERSION_HEX >= 0x03030000
+	bank_code = PyUnicode_AsUTF8(self->bank_code);
+	account_no = PyUnicode_AsUTF8(self->no);
+#else
+	PyObject *s = _PyUnicode_AsDefaultEncodedString(self->bank_code, NULL);
+	bank_code = PyBytes_AS_STRING(s);
+	*s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
+	account_no = PyBytes_AS_STRING(s);
+#endif
 	GWEN_TIME *gwTime;
 	const char *dateFrom=NULL, *dateTo=NULL;
 	static char *kwlist[] = {"dateFrom", "dateTo", NULL};

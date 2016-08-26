@@ -20,13 +20,13 @@ public:
 	/**
 	 * The callbacks to the python caller.
 	 */
-	PyObject *callbackLog = NULL;
-	PyObject *callbackPassword = NULL;
+	PyObject *callbackLog;
+	PyObject *callbackPassword;
 
 protected:
-	virtual int logHook(const char* logDomain, GWEN_LOGGER_LEVEL level, const char *s) override;
-	virtual int getPassword(uint32_t flags, const char *token, const char *title, const char *text, char *buffer, int minLen, int maxLen, uint32_t guiid) override;
-	virtual int checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32_t guiid) override;
+	virtual int logHook(const char* logDomain, GWEN_LOGGER_LEVEL level, const char *s);
+	virtual int getPassword(uint32_t flags, const char *token, const char *title, const char *text, char *buffer, int minLen, int maxLen, uint32_t guiid);
+	virtual int checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32_t guiid);
 };
 
 #endif /* PYAQHANDLER_HPP */

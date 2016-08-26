@@ -84,7 +84,12 @@ int PyAqHandler::getPassword(uint32_t flags, const char *token, const char *titl
 		return 1;
 	} else {
 		// Now convert the object to int.
+#if PY_VERSION_HEX >= 0x03030000
 		passwordPy = PyUnicode_AsUTF8(result);
+#else
+		PyObject *s = _PyUnicode_AsDefaultEncodedString(result, NULL);
+		passwordPy = PyBytes_AS_STRING(s);
+#endif
 		strcpy(buffer, passwordPy);
 		Py_DECREF(result);
 	}
