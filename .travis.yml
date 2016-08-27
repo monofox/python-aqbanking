@@ -1,0 +1,16 @@
+sudo: required 
+dist: trusty        
+language: python
+python:
+        - "3.2"
+        - "3.3"
+        - "3.4"
+
+# dependencies
+before_install:
+        - sudo apt-get -qq update
+        - sudo apt-get install libaqbanking-dev libgwenhywfar60-dev
+
+# tests
+script: python3 setup.py install
+
