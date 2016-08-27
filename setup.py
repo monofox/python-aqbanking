@@ -12,8 +12,10 @@ def read(fname):
 module1 = Extension('aqbanking',
 	libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
 	include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5', '/usr/local/include/gwenhywfar4', '/usr/local/include/aqbanking5'],
-	# for compiling debug:
+	# for compiling debug with python debug:
 	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG'],
+	# for compiling debug without python debug
+	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR'],
 	extra_compile_args=['-Wunused-variable', '-Wunused-function'],
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
 )

@@ -44,3 +44,6 @@ And to list all configured accounts (you can not configure it through this libra
 For all other functions, you need first to create an account:
 `acc = aqbanking.Account(no=157458624, bank_code=45021512)`
 
+New is a function in order to get the information, which jobs or features are available:
+`acc.availableJobs()`
+Implemented is: `nationalTransfer` and `sepaTransfer`.

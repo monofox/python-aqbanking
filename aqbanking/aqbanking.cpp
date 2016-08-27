@@ -13,6 +13,8 @@
 #include <aqbanking/banking.h>
 #include <aqbanking/jobgetbalance.h>
 #include <aqbanking/jobgettransactions.h>
+#include <aqbanking/jobsingletransfer.h>
+#include <aqbanking/jobsepatransfer.h>
 #include "pyaqhandler.hpp"
 
 /**
@@ -48,6 +50,7 @@ typedef struct {
  */
 typedef struct {
 	PyObject_HEAD
+	PyObject *uniqueId;
 	PyObject *date;
 	PyObject *valutaDate;
 	PyObject *localAccount;
@@ -150,6 +153,7 @@ int AB_free(aqbanking_Account *acct = NULL) {
 //***** HERE THE AQBANKING PYTHON ITSELF STARTS ****
 static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 {
+	Py_XDECREF(self->uniqueId);
 	Py_XDECREF(self->date);
 	Py_XDECREF(self->valutaDate);
 	Py_XDECREF(self->localAccount);
@@ -179,6 +183,13 @@ static PyObject *aqbanking_Transaction_New(PyTypeObject *type, PyObject *args, P
 
 	self = (aqbanking_Transaction *)type->tp_alloc(type, 0);
 	if (self != NULL) {
+		int uniqueId_default = -1;
+		self->uniqueId = PyLong_FromLong(uniqueId_default);
+		if (self->uniqueId == NULL) {
+			Py_DECREF(self);
+			return NULL;
+		}
+
 		self->date = PyUnicode_FromString("");
 		if (self->date == NULL) {
 			Py_DECREF(self);
@@ -346,6 +357,7 @@ static int aqbanking_Transaction_init(aqbanking_Transaction *self, PyObject *arg
 }
 
 static PyMemberDef aqbanking_Transaction_members[] = {
+	{"uniqueId", T_OBJECT_EX, offsetof(aqbanking_Transaction, uniqueId), 0, "Unique ID of transaction"},
 	{"date", T_OBJECT_EX, offsetof(aqbanking_Transaction, date), 0, "Date of transaction"},
 	{"valutaDate", T_OBJECT_EX, offsetof(aqbanking_Transaction, valutaDate), 0, "Valuta date of transaction"},
 	{"localAccount", T_OBJECT_EX, offsetof(aqbanking_Transaction, localAccount), 0, "Local account no."},
@@ -662,6 +674,90 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	return Py_BuildValue("(d,s)", balance, "EUR");
 }
 
+static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObject *args, PyObject *keywds)
+{
+	// ##LUS TODO
+	int rv;
+	AB_ACCOUNT *a;	
+	const char *bank_code;
+	const char *account_no;
+#if PY_VERSION_HEX >= 0x03030000
+	bank_code = PyUnicode_AsUTF8(self->bank_code);
+	account_no = PyUnicode_AsUTF8(self->no);
+#else
+	PyObject *s = _PyUnicode_AsDefaultEncodedString(self->bank_code, NULL);
+	bank_code = PyBytes_AS_STRING(s);
+	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
+	account_no = PyBytes_AS_STRING(s);
+#endif
+	PyObject *featList = PyList_New(0);
+
+	// Valid data set?
+	if (self->no == NULL)
+	{
+		PyErr_SetString(PyExc_AttributeError, "no");
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_AttributeError, "bank_code");
+	}
+
+	// Initialize aqbanking.
+	rv = AB_create(self);
+	if (rv > 0)
+	{
+		Py_DECREF(featList);
+		return NULL;
+	}
+
+	// Let us find the account!
+	a = AB_Banking_GetAccountByCodeAndNumber(self->ab, bank_code, account_no);
+	if (!a)
+	{
+		PyErr_SetString(AccountNotFound, "Could not find the given account! ");
+		Py_DECREF(featList);
+		return NULL;
+	}
+
+
+	// Check availableJobs
+	// national transfer
+	PyObject *feature;
+	AB_JOB *abJob = AB_JobSingleTransfer_new(a);
+	if (AB_Job_CheckAvailability(abJob) == 0) 
+	{
+		feature = PyUnicode_FromString("nationalTransfer");
+		PyList_Append(featList, (PyObject *)feature);
+		Py_DECREF(feature);
+	}
+	AB_Job_free(abJob);
+
+
+	// sepa transfer
+	abJob = AB_JobSepaTransfer_new(a);
+	if (AB_Job_CheckAvailability(abJob) == 0) 
+	{
+		feature = PyUnicode_FromString("sepaTransfer");
+		PyList_Append(featList, (PyObject *)feature);
+		Py_DECREF(feature);
+	}
+	AB_Job_free(abJob);
+
+	PyList_Append(featList, (PyObject *)feature);
+	Py_DECREF(feature);
+
+	// Exit aqbanking.
+	rv = AB_free(self);
+	if (rv > 0)
+	{
+		Py_DECREF(featList);
+		return NULL;
+	}
+
+	return featList;
+
+}
+
 static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObject *args, PyObject *kwds)
 {
 	int rv;
@@ -787,7 +883,9 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					purpose = "";
 				}
 
-				fprintf(stderr, "[%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
+#ifdef DEBUGSTDERR
+				fprintf(stderr, "[%-10d]: [%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
+						AB_Transaction_GetUniqueId(t),
 						AB_Transaction_GetRemoteIban(t),
 						AB_Transaction_GetRemoteBic(t),
 						AB_Transaction_GetRemoteAccountNumber(t),
@@ -796,6 +894,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 						AB_Value_GetValueAsDouble(v),
 						AB_Value_GetCurrency(v)
 				);
+#endif
 
 				tdtime = AB_Transaction_GetDate(t);
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
@@ -877,11 +976,12 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
 				trans->currency = PyUnicode_FromString("EUR");
-                                if (AB_Transaction_GetTransactionText(t) == NULL) {
-                                    trans->transactionText = PyUnicode_FromString("");
-                                } else {
-				    trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
-                                }
+				trans->uniqueId = PyLong_FromLong(AB_Transaction_GetUniqueId(t));
+				if (AB_Transaction_GetTransactionText(t) == NULL) {
+					trans->transactionText = PyUnicode_FromString("");
+				} else {
+					trans->transactionText = PyUnicode_FromString(AB_Transaction_GetTransactionText(t));
+				}
 				trans->transactionCode = PyLong_FromLong(AB_Transaction_GetTransactionCode(t));
 				trans->textKey = PyLong_FromLong(AB_Transaction_GetTextKey(t));
 				trans->textKeyExt = PyLong_FromLong(AB_Transaction_GetTextKeyExt(t));
@@ -966,6 +1066,7 @@ static PyMethodDef aqbanking_Account_methods[] = {
 	},*/
 	{"balance", (PyCFunction)aqbanking_Account_balance, METH_VARARGS | METH_KEYWORDS, "Get the balance of the account."},
 	{"transactions", (PyCFunction)aqbanking_Account_transactions, METH_VARARGS | METH_KEYWORDS, "Get the list of transactions of an account."},
+	{"availableJobs", (PyCFunction)aqbanking_Account_available_jobs, METH_VARARGS | METH_KEYWORDS, "Get a list of available jobs."},
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
 	{NULL}  /* Sentinel */
