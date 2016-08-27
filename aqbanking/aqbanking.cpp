@@ -21,7 +21,9 @@
  * Here are some exceptions.
  */
 static PyObject *AccountNotFound;
+static PyObject *InvalidIBAN;
 static PyObject *ExecutionFailed;
+static PyObject *JobNotAvailable;
 
 /**
  * Module specific AQ Handler.
@@ -676,7 +678,6 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 
 static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
-	// ##LUS TODO
 	int rv;
 	AB_ACCOUNT *a;	
 	const char *bank_code;
@@ -1051,6 +1052,135 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	return transList;
 }
 
+#ifdef FENQUEJOB
+static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject *args, PyObject *kwds)
+{
+	int rv;
+	AB_ACCOUNT *a;
+	AB_JOB_LIST2 *jl;
+	const char *bank_code;
+	const char *account_no;
+#if PY_VERSION_HEX >= 0x03030000
+	bank_code = PyUnicode_AsUTF8(self->bank_code);
+	account_no = PyUnicode_AsUTF8(self->no);
+#else
+	PyObject *s = _PyUnicode_AsDefaultEncodedString(self->bank_code, NULL);
+	bank_code = PyBytes_AS_STRING(s);
+	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
+	account_no = PyBytes_AS_STRING(s);
+#endif
+	
+	const char *remoteName=NULL, 
+				*remoteIban=NULL,
+				*remoteBic=NULL,
+				*purpose=NULL,
+				*endToEndReference=NULL,
+				*textKey=NULL;
+	const double value=0.0;
+	const char *delim = "\n";
+
+	static char *kwlist[] = {"remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
+	if (! PyArg_ParseTupleAndKeywords(
+		args, kwds, "|ssssssd", kwlist, &remoteName, &remoteIban, &remoteBic,
+		&purpose, &endToEndReference, &textKey, &value))
+	{
+		return NULL;
+	}
+
+	// Valid data set?
+	if (self->no == NULL)
+	{
+		PyErr_SetString(PyExc_AttributeError, "no");
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_AttributeError, "bank_code");
+	}
+
+	// Initialize aqbanking.
+	rv = AB_create(self);
+	if (rv > 0)
+	{
+		return NULL;
+	}
+
+	// Let us find the account!
+	a = AB_Banking_GetAccountByCodeAndNumber(self->ab, bank_code, account_no);
+	if (!a)
+	{
+		PyErr_SetString(AccountNotFound, "Could not find the given account! ");
+		return NULL;
+	}
+
+	// Validate remote data...
+	rv = AB_Banking_CheckIban(remoteIban);
+	if (rv > 0)
+	{
+		PyErr_SetString(InvalidIBAN, "Remote IBAN given for transfer is invalid.");
+		return NULL;
+	}
+
+	// Check availableJobs
+	// sepa transfer
+	AB_JOB *abJob = AB_JobSepaTransfer_new(a);
+	if (AB_Job_CheckAvailability(abJob) != 0) 
+	{
+		// Trigger error!!! TODO
+		PyErr_SetString(JobNotAvailable, "SEPA transfer job not available!");
+		return NULL;
+	}
+	AB_Job_free(abJob);
+
+	AB_TRANSACTION *AbTransaction = AB_Transaction_new();
+	// Recipient
+	GWEN_STRINGLIST *remoteNameList = GWEN_StringList_fromString(remoteName, delim, 0);
+	AB_Transaction_SetRemoteName(AbTransaction, remoteNameList);
+	GWEN_StringList_free(remoteNameList);
+	AB_Transaction_SetRemoteIban(AbTransaction, remoteIban);
+	AB_Transaction_SetRemoteBic(AbTransaction, remoteBic);
+
+	// Origin
+	//AB_Transaction_SetLocalAccount(AbTransaction, a);
+	
+	// Purpose
+	GWEN_STRINGLIST *purposeList = GWEN_StringList_fromString(purpose, delim, 0);
+	AB_Transaction_SetPurpose(AbTransaction, purposeList);
+	GWEN_StringList_free(purposeList);
+
+	// Reference
+	//AB_Transaction_SetEndToEndReference(AbTransaction, xxx);
+	// Other fields
+	// AB_Transaction_SetTextKey(AbTransaction, xxx);
+	AB_Transaction_SetValue(AbTransaction, AB_Value_fromDouble(value));
+	
+	// Enque job.
+	AB_Job_SetTransaction(abJob, AbTransaction);
+	jl = AB_Job_List2_new();
+	AB_Job_List2_PushBack(jl, abJob);
+	AB_IMEXPORTER_CONTEXT *ctx = AB_ImExporterContext_new();
+	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
+	if (rv) {
+		PyErr_SetString(ExecutionFailed, "Could not execute SEPA transfer job.");
+		return NULL;
+	}
+	AB_Job_free(abJob);
+
+	// Free jobs.
+	AB_Job_List2_free(jl);
+	AB_ImExporterContext_free(ctx);
+
+	// Exit aqbanking.
+	rv = AB_free(self);
+	if (rv > 0)
+	{
+		return NULL;
+	}
+
+	return NULL;
+
+}
+#endif
+
 static PyMemberDef aqbanking_Account_members[] = {
 	{"no", T_OBJECT_EX, offsetof(aqbanking_Account, no), 0, "Account No."},
 	{"name", T_OBJECT_EX, offsetof(aqbanking_Account, name), 0, "Name"},
@@ -1067,6 +1197,9 @@ static PyMethodDef aqbanking_Account_methods[] = {
 	{"balance", (PyCFunction)aqbanking_Account_balance, METH_VARARGS | METH_KEYWORDS, "Get the balance of the account."},
 	{"transactions", (PyCFunction)aqbanking_Account_transactions, METH_VARARGS | METH_KEYWORDS, "Get the list of transactions of an account."},
 	{"availableJobs", (PyCFunction)aqbanking_Account_available_jobs, METH_VARARGS | METH_KEYWORDS, "Get a list of available jobs."},
+#ifdef FENQUEJOB
+	{"enqueJob", (PyCFunction)aqbanking_Account_enqueue_job, METH_VARARGS | METH_KEYWORDS, "Make a transfer."},
+#endif	
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
 	{NULL}  /* Sentinel */
@@ -1283,6 +1416,14 @@ PyInit_aqbanking(void)
 	ExecutionFailed = PyErr_NewException("aqbanking.ExecutionFailed", NULL, NULL);
 	Py_INCREF(ExecutionFailed);
 	PyModule_AddObject(m, "ExecutionFailed", ExecutionFailed);
+#ifdef FENQUEJOB
+	InvalidIBAN = PyErr_NewException("aqbanking.InvalidIBAN", NULL, NULL);
+	Py_INCREF(InvalidIBAN);
+	PyModule_AddObject(m, "InvalidIBAN", InvalidIBAN);
+	JobNotAvailable = PyErr_NewException("aqbanking.JobNotAvailable", NULL, NULL);
+	Py_INCREF(JobNotAvailable);
+	PyModule_AddObject(m, "JobNotAvailable", JobNotAvailable);
+#endif
 
 	// Some types
 	Py_INCREF(&aqbanking_AccountType);

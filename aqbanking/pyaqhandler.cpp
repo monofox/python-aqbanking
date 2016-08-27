@@ -79,7 +79,7 @@ int PyAqHandler::getPassword(uint32_t flags, const char *token, const char *titl
 
 	// So we need a result! So now lets check it.
 	if (result == NULL) {
-		fprintf(stderr, "%s", "No password returned!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		fprintf(stderr, "%s", "No password returned!\n");
 		PyErr_Print(); 
 		return 1;
 	} else {
