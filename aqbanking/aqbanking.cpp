@@ -593,7 +593,7 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 #else
 	PyObject *s = _PyUnicode_AsDefaultEncodedString(self->bank_code, NULL);
 	bank_code = PyBytes_AS_STRING(s);
-	*s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
+	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
 	account_no = PyBytes_AS_STRING(s);
 #endif
 	AB_ACCOUNT *a;
@@ -674,7 +674,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 #else
 	PyObject *s = _PyUnicode_AsDefaultEncodedString(self->bank_code, NULL);
 	bank_code = PyBytes_AS_STRING(s);
-	*s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
+	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
 	account_no = PyBytes_AS_STRING(s);
 #endif
 	GWEN_TIME *gwTime;
