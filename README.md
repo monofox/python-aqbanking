@@ -47,3 +47,8 @@ For all other functions, you need first to create an account:
 New is a function in order to get the information, which jobs or features are available:
 `acc.availableJobs()`
 Implemented is: `nationalTransfer` and `sepaTransfer`.
+
+Known Bugs/Missing features
+===========================
+Right now, this extension does not support the Smartcard/Chipcard procedure for authentication. This is planned for the future, but will need time in order to write the corresponding backend.
+
