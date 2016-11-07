@@ -71,6 +71,9 @@ typedef struct {
 	PyObject *textKey;
 	PyObject *textKeyExt;
 	PyObject *sepaMandateId;
+	PyObject *customerReference;
+	PyObject *bankReference;
+	PyObject *endToEndReference;
 	int state;
 
 } aqbanking_Transaction;
@@ -174,6 +177,9 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->textKey);
 	Py_XDECREF(self->textKeyExt);
 	Py_XDECREF(self->sepaMandateId);
+	Py_XDECREF(self->customerReference);
+	Py_XDECREF(self->bankReference);
+	Py_XDECREF(self->endToEndReference);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -379,6 +385,9 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"textKey", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKey), 0, "A numerical transaction code (Textschlüssel)"},
 	{"textKeyExt", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKeyExt), 0, "An extension to the text key (Textschlüsselergänzung)"},
 	{"sepaMandateId", T_OBJECT_EX, offsetof(aqbanking_Transaction, sepaMandateId), 0, "Mandate ID of a SEPA mandate for SEPA direct debits"},
+	{"customerReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, customerReference), 0, "Customer Reference"},
+	{"bankReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, bankReference), 0, "Bank Reference"},
+	{"endToEndReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, endToEndReference), 0, "End-To-End Reference"},
 	{NULL}
 };
 
@@ -1012,6 +1021,21 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					trans->sepaMandateId = Py_None;
 				} else {
 					trans->sepaMandateId = PyUnicode_FromString(AB_Transaction_GetMandateId(t));
+				}
+				if (AB_Transaction_GetCustomerReference(t) == NULL) {
+					trans->customerReference = PyUnicode_FromString("");
+				} else {
+					trans->customerReference = PyUnicode_FromString(AB_Transaction_GetCustomerReference(t));
+				}
+				if (AB_Transaction_GetBankReference(t) == NULL) {
+					trans->bankReference = PyUnicode_FromString("");
+				} else {
+					trans->bankReference = PyUnicode_FromString(AB_Transaction_GetBankReference(t));
+				}
+				if (AB_Transaction_GetEndToEndReference(t) == NULL) {
+					trans->endToEndReference = PyUnicode_FromString("");
+				} else {
+					trans->endToEndReference = PyUnicode_FromString(AB_Transaction_GetEndToEndReference(t));
 				}
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
