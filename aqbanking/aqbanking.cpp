@@ -864,23 +864,41 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				const GWEN_STRINGLIST *sl;
 				const GWEN_TIME *tdtime;
 				const char *purpose;
+				char* purposeBuffer = NULL;
 				const char *remoteName;
 				aqbanking_Transaction *trans = (aqbanking_Transaction*) PyObject_CallObject((PyObject *) &aqbanking_TransactionType, NULL);
 
-				/* The purpose (memo field) might contain multiple lines.
-				 * Therefore AqBanking stores the purpose in a string list
-				 * of which the first entry is used in this tutorial */
 				sl = AB_Transaction_GetPurpose(t);
-				if (sl)
-				{
-					purpose = GWEN_StringList_FirstString(sl);
-					if (purpose == NULL) {
-						purpose = "";
-					}
-				}
-				else
-				{
+				if (!sl) {
 					purpose = "";
+				} else {
+					unsigned int count = GWEN_StringList_Count(sl);
+					if (!count) {
+						purpose = "";
+					} else {
+						unsigned int length = 0;
+						for (unsigned int i = 0; i < count; i++) {
+							length += strlen(GWEN_StringList_StringAt(sl, i));
+						}
+
+						if (!length) {
+							purpose = "";
+						} else {
+							purposeBuffer = (char*)malloc(length + 1);
+							if (!purposeBuffer) {
+								purpose = "";
+							} else {
+								char* rover = purposeBuffer;
+								for (unsigned int i = 0; i < count; i++) {
+									unsigned int stringLength = strlen(GWEN_StringList_StringAt(sl, i));
+									memcpy(rover, GWEN_StringList_StringAt(sl, i), stringLength);
+									rover += stringLength;
+								}
+								*rover = '\0';
+								purpose = purposeBuffer;
+							}
+						}
+					}
 				}
 
 #ifdef DEBUGSTDERR
@@ -903,6 +921,11 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
 				trans->valutaDate = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
 				trans->purpose = PyUnicode_FromString(purpose);
+
+				if (purposeBuffer) {
+					free(purposeBuffer);
+					purposeBuffer = NULL;
+				}
 
 				// Local user
 				if (AB_Transaction_GetLocalAccountNumber(t) == NULL) {
