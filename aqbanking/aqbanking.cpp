@@ -592,6 +592,94 @@ static PyObject *aqbanking_Account_set_callbackPassword(aqbanking_Account* self,
 	return result;
 }
 
+static PyObject *aqbanking_Account_set_callbackPasswordStatus(aqbanking_Account* self, PyObject *args)
+{
+	PyObject *result = NULL;
+	PyObject *temp;
+
+	if (PyArg_ParseTuple(args, "O:set_callbackPasswordStatus", &temp)) {
+		if (!PyCallable_Check(temp)) {
+			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+			return NULL;
+		}
+		Py_XINCREF(temp);         /* Add a reference to new callback */
+		Py_XDECREF(self->aqh->callbackPasswordStatus);  /* Dispose of previous callback */
+		self->aqh->callbackPasswordStatus = temp;       /* Remember new callback */
+		if (self->aqh->callbackPasswordStatus == NULL) {
+			fprintf(stderr, "%s", "!!but is still invalid!!! \n");
+		}
+		/* Boilerplate to return "None" */
+		Py_INCREF(Py_None);
+		result = Py_None;
+	}
+	return result;
+}
+
+static PyObject *aqbanking_Account_set_callbackGui(aqbanking_Account* self, PyObject *args, PyObject *kwds)
+{
+	PyObject *result = NULL;
+	PyObject *tempCallbackOpenDialog;
+	PyObject *tempCallbackCloseDialog;
+	PyObject *tempCallbackExecDialog;
+	PyObject *tempCallbackRunDialog;
+	PyObject *tempCallbackPrint;
+
+	static char *kwlist[] = {
+		"callbackOpenDialog", "callbackCloseDialog", "callbackExecDialog", "callbackRunDialog", "callbackPrint", NULL
+	};
+	if (! PyArg_ParseTupleAndKeywords(
+		args, kwds, "|OOOOO", kwlist, &tempCallbackOpenDialog, &tempCallbackCloseDialog, &tempCallbackExecDialog, 
+			&tempCallbackRunDialog, &tempCallbackPrint))
+	{
+		return NULL;
+	}
+	
+	if (!PyCallable_Check(tempCallbackOpenDialog) && tempCallbackOpenDialog != NULL) {
+		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+		return NULL;
+	}
+	Py_XINCREF(tempCallbackOpenDialog);
+	Py_XDECREF(self->aqh->callbackOpenDialog);
+	self->aqh->callbackOpenDialog = tempCallbackOpenDialog;
+	
+	if (!PyCallable_Check(tempCallbackOpenDialog) && tempCallbackCloseDialog != NULL) {
+		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+		return NULL;
+	}
+	Py_XINCREF(tempCallbackCloseDialog);
+	Py_XDECREF(self->aqh->callbackCloseDialog);
+	self->aqh->callbackCloseDialog = tempCallbackCloseDialog;
+	
+	if (!PyCallable_Check(tempCallbackExecDialog) && tempCallbackExecDialog != NULL) {
+		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+		return NULL;
+	}
+	Py_XINCREF(tempCallbackExecDialog);
+	Py_XDECREF(self->aqh->callbackExecDialog);
+	self->aqh->callbackExecDialog = tempCallbackExecDialog;
+	
+	if (!PyCallable_Check(tempCallbackRunDialog) && tempCallbackRunDialog != NULL) {
+		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+		return NULL;
+	}
+	Py_XINCREF(tempCallbackRunDialog);
+	Py_XDECREF(self->aqh->callbackRunDialog);
+	self->aqh->callbackRunDialog = tempCallbackRunDialog;
+	
+	if (!PyCallable_Check(tempCallbackPrint) && tempCallbackPrint != NULL) {
+		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+		return NULL;
+	}
+	Py_XINCREF(tempCallbackPrint);
+	Py_XDECREF(self->aqh->callbackPrint);
+	self->aqh->callbackPrint = tempCallbackPrint;
+	
+	/* Boilerplate to return "None" */
+	Py_INCREF(Py_None);
+	result = Py_None;
+	return result;
+}
+
 static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
 	const AB_ACCOUNT_STATUS * status;
@@ -1058,6 +1146,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	int rv;
 	AB_ACCOUNT *a;
 	AB_JOB_LIST2 *jl;
+	AB_JOB_STATUS job_status;
 	const char *bank_code;
 	const char *account_no;
 #if PY_VERSION_HEX >= 0x03030000
@@ -1070,7 +1159,10 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	account_no = PyBytes_AS_STRING(s);
 #endif
 	
-	const char *remoteName=NULL, 
+	const char 	*localName=NULL,
+				*localIban=NULL,
+				*localBic=NULL,
+				*remoteName=NULL, 
 				*remoteIban=NULL,
 				*remoteBic=NULL,
 				*purpose=NULL,
@@ -1079,9 +1171,9 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	const double value=0.0;
 	const char *delim = "\n";
 
-	static char *kwlist[] = {"remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
+	static char *kwlist[] = {"localName", "localIban", "localBic", "remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
 	if (! PyArg_ParseTupleAndKeywords(
-		args, kwds, "|ssssssd", kwlist, &remoteName, &remoteIban, &remoteBic,
+		args, kwds, "|sssssssssd", kwlist, &localName, &localIban, &localBic, &remoteName, &remoteIban, &remoteBic,
 		&purpose, &endToEndReference, &textKey, &value))
 	{
 		return NULL;
@@ -1113,6 +1205,14 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	}
 
 	// Validate remote data...
+	rv = AB_Banking_CheckIban(localIban);
+	if (rv > 0)
+	{
+		PyErr_SetString(InvalidIBAN, "Local IBAN given for transfer is invalid.");
+		return NULL;
+	}
+
+	// Validate remote data...
 	rv = AB_Banking_CheckIban(remoteIban);
 	if (rv > 0)
 	{
@@ -1129,7 +1229,6 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 		PyErr_SetString(JobNotAvailable, "SEPA transfer job not available!");
 		return NULL;
 	}
-	AB_Job_free(abJob);
 
 	AB_TRANSACTION *AbTransaction = AB_Transaction_new();
 	// Recipient
@@ -1140,7 +1239,9 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	AB_Transaction_SetRemoteBic(AbTransaction, remoteBic);
 
 	// Origin
-	//AB_Transaction_SetLocalAccount(AbTransaction, a);
+	AB_Transaction_SetLocalName(AbTransaction, localName);
+	AB_Transaction_SetLocalIban(AbTransaction, localIban);
+	AB_Transaction_SetLocalBic(AbTransaction, localBic);
 	
 	// Purpose
 	GWEN_STRINGLIST *purposeList = GWEN_StringList_fromString(purpose, delim, 0);
@@ -1163,20 +1264,25 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 		PyErr_SetString(ExecutionFailed, "Could not execute SEPA transfer job.");
 		return NULL;
 	}
+	job_status = AB_Job_GetStatus(abJob);
+	if (job_status != AB_Job_StatusFinished && job_status != AB_Job_StatusPending)
+    {
+        PyErr_SetString(ExecutionFailed, "Error on executing SEPA transfer job.");
+        fprintf(stderr, "[%-10s]: %-50s\n", AB_Job_Status2Char(job_status) , AB_Job_GetResultText(abJob));
+        AB_Job_free(abJob);
+		AB_Job_List2_free(jl);
+		AB_ImExporterContext_free(ctx);
+		AB_free(self);
+        Py_RETURN_FALSE;
+	}
 	AB_Job_free(abJob);
 
 	// Free jobs.
 	AB_Job_List2_free(jl);
 	AB_ImExporterContext_free(ctx);
+	AB_free(self);
 
-	// Exit aqbanking.
-	rv = AB_free(self);
-	if (rv > 0)
-	{
-		return NULL;
-	}
-
-	return NULL;
+	Py_RETURN_TRUE;
 
 }
 #endif
@@ -1202,6 +1308,10 @@ static PyMethodDef aqbanking_Account_methods[] = {
 #endif	
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
+	{"set_callbackPasswordStatus", (PyCFunction)aqbanking_Account_set_callbackPasswordStatus, METH_VARARGS, "Adds a callback to inform about password status."},
+#ifdef FENQUEJOB
+	{"set_callbackGui", (PyCFunction)aqbanking_Account_set_callbackGui, METH_VARARGS, "Add the GUI callbacks (OpenDialog, CloseDialog, ExecDialog, RunDialog, Print)."},
+#endif
 	{NULL}  /* Sentinel */
 };
 

@@ -22,11 +22,27 @@ public:
 	 */
 	PyObject *callbackLog;
 	PyObject *callbackPassword;
+	PyObject *callbackPasswordStatus;
+#ifdef FENQUEJOB
+	PyObject *callbackOpenDialog;
+	PyObject *callbackCloseDialog;
+	PyObject *callbackExecDialog;
+	PyObject *callbackRunDialog;
+	PyObject *callbackPrint;
+#endif
 
 protected:
 	virtual int logHook(const char* logDomain, GWEN_LOGGER_LEVEL level, const char *s);
 	virtual int getPassword(uint32_t flags, const char *token, const char *title, const char *text, char *buffer, int minLen, int maxLen, uint32_t guiid);
+	virtual int setPasswordStatus(const char *token, const char *pin, GWEN_GUI_PASSWORD_STATUS status, uint32_t guiid);
 	virtual int checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32_t guiid);
+#ifdef FENQUEJOB
+	virtual int openDialog(GWEN_DIALOG *dlg, uint32_t guiid);
+	virtual int execDialog(GWEN_DIALOG *dlg, uint32_t guiid);
+	virtual int closeDialog(GWEN_DIALOG *dlg);
+	virtual int runDialog(GWEN_DIALOG *dlg, int untilEnd);
+	virtual int print(const char *docTitle, const char *docType, const char *descr, const char *text, uint32_t guiid);
+#endif
 };
 
 #endif /* PYAQHANDLER_HPP */
