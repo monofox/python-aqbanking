@@ -74,6 +74,8 @@ typedef struct {
 	PyObject *customerReference;
 	PyObject *bankReference;
 	PyObject *endToEndReference;
+	PyObject *fiId;
+	PyObject *primaNota;
 	int state;
 
 } aqbanking_Transaction;
@@ -180,6 +182,8 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->customerReference);
 	Py_XDECREF(self->bankReference);
 	Py_XDECREF(self->endToEndReference);
+	Py_XDECREF(self->fiId);
+	Py_XDECREF(self->primaNota);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -388,6 +392,8 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"customerReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, customerReference), 0, "Customer Reference"},
 	{"bankReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, bankReference), 0, "Bank Reference"},
 	{"endToEndReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, endToEndReference), 0, "End-To-End Reference"},
+	{"fiId", T_OBJECT_EX, offsetof(aqbanking_Transaction, fiId), 0, "FiID"},
+	{"primaNota", T_OBJECT_EX, offsetof(aqbanking_Transaction, primaNota), 0, "Prima Nota"},
 	{NULL}
 };
 
@@ -1036,6 +1042,16 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					trans->endToEndReference = PyUnicode_FromString("");
 				} else {
 					trans->endToEndReference = PyUnicode_FromString(AB_Transaction_GetEndToEndReference(t));
+				}
+				if (AB_Transaction_GetFiId(t) == NULL) {
+					trans->fiId = PyUnicode_FromString("");
+				} else {
+					trans->fiId = PyUnicode_FromString(AB_Transaction_GetFiId(t));
+				}
+				if (AB_Transaction_GetPrimanota(t) == NULL) {
+					trans->primaNota = PyUnicode_FromString("");
+				} else {
+					trans->primaNota = PyUnicode_FromString(AB_Transaction_GetPrimanota(t));
 				}
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
