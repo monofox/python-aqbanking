@@ -52,3 +52,5 @@ Known Bugs/Missing features
 ===========================
 Right now, this extension does not support the Smartcard/Chipcard procedure for authentication. This is planned for the future, but will need time in order to write the corresponding backend.
 
+The server certificate of the HTTPS connection is not validated at the moment, so do not use it for sensitive data, as man in the middle attack is possible without notice.
+
