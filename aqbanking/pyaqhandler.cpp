@@ -12,6 +12,7 @@ PyAqHandler::PyAqHandler() : CppGui()
 	GWEN_Gui_SetGui(this->_gui);
 	this->callbackLog = NULL;
 	this->callbackPassword = NULL;
+	this->callbackCheckCert = NULL;
 }
 
 /**
@@ -102,7 +103,30 @@ int PyAqHandler::getPassword(uint32_t flags, const char *token, const char *titl
  */
 int PyAqHandler::checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32_t guiid) 
 {
-	// FIXME: implement at least some basic checks => or ask user via callback!
+	// FIXME: implement something better
+	if (this->callbackCheckCert == NULL) {
+        fprintf(stderr, "%s", "No certificate check python CB defined! \nThis is insecure!\n");
+        return 0;
+    }
+
+	PyObject *result;
+	const char *commonName = GWEN_SslCertDescr_GetCommonName(cd);
+	const char *sha512 = GWEN_SslCertDescr_GetFingerPrintSha512(cd);
+
+	PyObject *arglist = Py_BuildValue("({s:s, s:s})", "commonName", commonName, "sha512", sha512);
+	result = PyObject_CallObject(this->callbackCheckCert, arglist);
+	Py_DECREF(arglist);
+
+	if (result == NULL) {
+		fprintf(stderr, "%s", "No answer on cert check returned!\n");
+		PyErr_Print();
+		return GWEN_ERROR_SSL_SECURITY;
+	} else {
+		int cert_valid = PyObject_IsTrue(result);
+		Py_DECREF(result);
+		return cert_valid? 0 : GWEN_ERROR_SSL_SECURITY;
+	}
+
 	return 0;
 }
 
