@@ -614,6 +614,19 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	double balance;
 	const char *bank_code; 
 	const char *account_no; 
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{                       
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
 #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
@@ -628,16 +641,6 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	AB_JOB_LIST2 *jl = 0;
 	AB_IMEXPORTER_CONTEXT *ctx = 0;
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -691,12 +694,24 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 
 static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
-	// ##LUS TODO
 	int rv;
 	AB_ACCOUNT *a;	
 	const char *bank_code;
 	const char *account_no;
-#if PY_VERSION_HEX >= 0x03030000
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{                       
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
+ #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
 #else
@@ -706,16 +721,6 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	account_no = PyBytes_AS_STRING(s);
 #endif
 	PyObject *featList = PyList_New(0);
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -779,6 +784,19 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	double tmpDateTime = 0;
 	const char *bank_code;
 	const char *account_no;
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
 #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
@@ -803,16 +821,6 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
 	/*aqbanking_Transaction *trans = NULL;*/
 	PyObject *transList = PyList_New(0);
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
