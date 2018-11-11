@@ -21,6 +21,8 @@ The proper development packages are required for:
  - Python >= 3.1
  - gwenhywfar >= 4.0.0
 
+For the installation, it is necessary to have the proper development packages installed (e.g. `apt-get install libaqbanking-dev libgwenhywfar60-dev`)
+
 Install
 =======
 
