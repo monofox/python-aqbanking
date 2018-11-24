@@ -14,6 +14,34 @@ PyAqHandler::PyAqHandler() : CppGui()
 	this->callbackLog = NULL;
 	this->callbackPassword = NULL;
 	this->callbackCheckCert = NULL;
+	this->callbackPasswordStatus = NULL;
+}
+
+int PyAqHandler::setPasswordStatus(const char *token, const char *pin, 
+	GWEN_GUI_PASSWORD_STATUS status, uint32_t guiid) {
+	int pystat = 0;
+	if (token == NULL && pin == NULL && status == GWEN_Gui_PasswordStatus_Remove) {
+		pystat = 9;
+	} else {
+		if (status == GWEN_Gui_PasswordStatus_Bad) {
+			pystat = 1;
+		} else if (status == GWEN_Gui_PasswordStatus_Remove) {
+			pystat = 2;
+		}
+		// FIXME: add new callback for this!
+#ifdef DEBUGSTDERR
+		fprintf(stderr, "%s / %s / %d\n", token, pin, pystat);
+#endif
+	}
+
+	if (this->callbackPasswordStatus != NULL) {
+		// Call the callback.
+		// If user does not give a callback, we can't give him a feedback about the PW status.
+		PyObject *arglist = Py_BuildValue("ssi", token, pin, pystat);
+		PyObject_CallObject(this->callbackPasswordStatus, arglist);
+		Py_DECREF(arglist);
+	}
+	return 0;
 }
 
 /**

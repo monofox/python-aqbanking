@@ -86,14 +86,14 @@ int AB_create(aqbanking_Account *acct = NULL) {
 
 	int rv = 0;
 
-		//Initialisierungen GWEN
+	// Initialisierungen GWEN
 	if (acct == NULL) {
 		GWEN_Gui_SetGui(aqh->getCInterface());
 	} else {
 		GWEN_Gui_SetGui(acct->aqh->getCInterface());
 	}
 
-		// Initialisierungen AB
+	// Initialisierungen AB
 	if (acct == NULL) {
 		ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
 		rv = AB_Banking_Init(ab);
@@ -114,12 +114,12 @@ int AB_create(aqbanking_Account *acct = NULL) {
 		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online initialize (%d).", rv));
 		return 2;
 	}
-	
-		//Setzen der Call-backs
-		/*GWEN_Gui_SetProgressLogFn(this->gui, zProgressLog);
-		GWEN_Gui_SetCheckCertFn(this->gui, zCheckCert);
-		GWEN_Gui_SetMessageBoxFn(this->gui, zMessageBox);
-		GWEN_Gui_SetGetPasswordFn(this->gui, zPasswordFn);*/
+
+	//Setzen der Call-backs
+	/*GWEN_Gui_SetProgressLogFn(this->gui, zProgressLog);
+	GWEN_Gui_SetCheckCertFn(this->gui, zCheckCert);
+	GWEN_Gui_SetMessageBoxFn(this->gui, zMessageBox);
+	GWEN_Gui_SetGetPasswordFn(this->gui, zPasswordFn);*/
 
 	return 0;
 }
@@ -607,6 +607,29 @@ static PyObject *aqbanking_Account_set_callbackPassword(aqbanking_Account* self,
 	return result;
 }
 
+static PyObject *aqbanking_Account_set_callbackPasswordStatus(aqbanking_Account* self, PyObject *args)
+{
+	PyObject *result = NULL;
+	PyObject *temp;
+
+	if (PyArg_ParseTuple(args, "O:set_callbackPasswordStatus", &temp)) {
+		if (!PyCallable_Check(temp)) {
+			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+			return NULL;
+		}
+		Py_XINCREF(temp);         /* Add a reference to new callback */
+		Py_XDECREF(self->aqh->callbackPasswordStatus);  /* Dispose of previous callback */
+		self->aqh->callbackPasswordStatus = temp;       /* Remember new callback */
+		if (self->aqh->callbackPasswordStatus == NULL) {
+			fprintf(stderr, "%s", "!!but is still invalid!!! \n");
+		}
+		/* Boilerplate to return "None" */
+		Py_INCREF(Py_None);
+		result = Py_None;
+	}
+	return result;
+}
+
 static PyObject *aqbanking_Account_set_callbackCheckCert(aqbanking_Account* self, PyObject *args)
 {
 	PyObject *result = NULL;
@@ -764,7 +787,7 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 
 	// Check availableJobs
 	// national transfer
-	PyObject *feature;
+	PyObject *feature = NULL;
 	AB_JOB *abJob = AB_JobSingleTransfer_new(a);
 	if (AB_Job_CheckAvailability(abJob) == 0) 
 	{
@@ -1203,6 +1226,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 		PyErr_SetString(AccountNotFound, "Could not find the given account! ");
 		return NULL;
 	}
+	assert(a);
 
 	// Validate remote data...
 	rv = AB_Banking_CheckIban(remoteIban);
@@ -1217,48 +1241,55 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	AB_JOB *abJob = AB_JobSepaTransfer_new(a);
 	if (AB_Job_CheckAvailability(abJob) != 0) 
 	{
-		// Trigger error!!! TODO
 		PyErr_SetString(JobNotAvailable, "SEPA transfer job not available!");
+		AB_Job_free(abJob);
 		return NULL;
 	}
-	AB_Job_free(abJob);
 
-	AB_TRANSACTION *AbTransaction = AB_Transaction_new();
+	AB_TRANSACTION *abTransaction = AB_Transaction_new();
+	// Basic data
+	AB_BANKING *abDetails = AB_Account_GetBanking(a);
+	assert(abDetails);
+	AB_Banking_FillGapsInTransaction(abDetails, a, abTransaction);
+
 	// Recipient
 	GWEN_STRINGLIST *remoteNameList = GWEN_StringList_fromString(remoteName, delim, 0);
-	AB_Transaction_SetRemoteName(AbTransaction, remoteNameList);
+	AB_Transaction_SetRemoteName(abTransaction, remoteNameList);
 	GWEN_StringList_free(remoteNameList);
-	AB_Transaction_SetRemoteIban(AbTransaction, remoteIban);
-	AB_Transaction_SetRemoteBic(AbTransaction, remoteBic);
+	AB_Transaction_SetRemoteIban(abTransaction, remoteIban);
+	AB_Transaction_SetRemoteBic(abTransaction, remoteBic);
 
 	// Origin
-	//AB_Transaction_SetLocalAccount(AbTransaction, a);
+	//AB_Transaction_SetLocalAccount(abTransaction, a);
 	
 	// Purpose
 	GWEN_STRINGLIST *purposeList = GWEN_StringList_fromString(purpose, delim, 0);
-	AB_Transaction_SetPurpose(AbTransaction, purposeList);
+	AB_Transaction_SetPurpose(abTransaction, purposeList);
 	GWEN_StringList_free(purposeList);
 
 	// Reference
-	//AB_Transaction_SetEndToEndReference(AbTransaction, xxx);
+	//AB_Transaction_SetEndToEndReference(abTransaction, xxx);
 	// Other fields
-	// AB_Transaction_SetTextKey(AbTransaction, xxx);
-	AB_Transaction_SetValue(AbTransaction, AB_Value_fromDouble(value));
+	// AB_Transaction_SetTextKey(abTransaction, xxx);
+	AB_Transaction_SetValue(abTransaction, AB_Value_fromDouble(value));
 	
 	// Enque job.
-	AB_Job_SetTransaction(abJob, AbTransaction);
+	AB_Job_SetTransaction(abJob, abTransaction);
+	AB_Transaction_free(abTransaction);
 	jl = AB_Job_List2_new();
 	AB_Job_List2_PushBack(jl, abJob);
 	AB_IMEXPORTER_CONTEXT *ctx = AB_ImExporterContext_new();
 	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
 	if (rv) {
 		PyErr_SetString(ExecutionFailed, "Could not execute SEPA transfer job.");
+		AB_Job_free(abJob);
+		AB_ImExporterContext_free(ctx);
 		return NULL;
 	}
-	AB_Job_free(abJob);
+	//AB_Job_free(abJob);
 
 	// Free jobs.
-	AB_Job_List2_free(jl);
+	AB_Job_List2_FreeAll(jl);
 	AB_ImExporterContext_free(ctx);
 
 	// Exit aqbanking.
@@ -1294,6 +1325,7 @@ static PyMethodDef aqbanking_Account_methods[] = {
 #endif	
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
+	{"set_callbackPasswordStatus", (PyCFunction)aqbanking_Account_set_callbackPasswordStatus, METH_VARARGS, "Adds a callback to get feedback about pin status."},
 	{"set_callbackCheckCert", (PyCFunction)aqbanking_Account_set_callbackCheckCert, METH_VARARGS, "Adds a callback to check the certificate."},
 	{NULL}  /* Sentinel */
 };
@@ -1345,7 +1377,7 @@ static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 	AB_ACCOUNT_LIST2 *accs;
 	// List of accounts => to return.
 	PyObject *accountList;
-	aqbanking_Account *account;
+	aqbanking_Account *account = NULL;
 	accountList = PyList_New(0);
 
 	// Initialize aqbanking.
