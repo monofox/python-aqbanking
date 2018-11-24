@@ -118,7 +118,6 @@ int PyAqHandler::checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32
 
 #if GWENHYWFAR_VERSION_MAJOR > 4 || (GWENHYWFAR_VERSION_MAJOR == 4 && GWENHYWFAR_VERSION_MINOR >= 18)
 	const char *sha512 = GWEN_SslCertDescr_GetFingerPrintSha512(cd);
-
 	PyObject *arglist = Py_BuildValue("({s:s, s:s, s:s, s:s, s:i})", "commonName", commonName, "md5", md5, "sha512", sha512, "statusText", statusText, "status", status);
 #else
 	PyObject *arglist = Py_BuildValue("({s:s, s:s, s:s, s:i})", "commonName", commonName, "md5", md5, "statusText", statusText, "status", status);
@@ -135,7 +134,5 @@ int PyAqHandler::checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32
 		Py_DECREF(result);
 		return cert_valid? 0 : GWEN_ERROR_SSL_SECURITY;
 	}
-
-	return 0;
 }
 

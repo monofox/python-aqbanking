@@ -84,77 +84,77 @@ typedef struct {
 
 int AB_create(aqbanking_Account *acct = NULL) {
 
-		int rv = 0;
+	int rv = 0;
 
 		//Initialisierungen GWEN
-		if (acct == NULL) {
-			GWEN_Gui_SetGui(aqh->getCInterface());
-		} else {
-			GWEN_Gui_SetGui(acct->aqh->getCInterface());
-		}
+	if (acct == NULL) {
+		GWEN_Gui_SetGui(aqh->getCInterface());
+	} else {
+		GWEN_Gui_SetGui(acct->aqh->getCInterface());
+	}
 
 		// Initialisierungen AB
-		if (acct == NULL) {
-			ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
-			rv = AB_Banking_Init(ab);
-		} else {
-			acct->ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
-			rv = AB_Banking_Init(acct->ab);
-		}
-		if (rv) {
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not initialize (%d).", rv));
-				return 2;
-		}
-		if (acct == NULL) {
-			rv = AB_Banking_OnlineInit(ab);
-		} else {
-			rv = AB_Banking_OnlineInit(acct->ab);
-		}
-		if (rv) {
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online initialize (%d).", rv));
-				return 2;
-		}
-		
+	if (acct == NULL) {
+		ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
+		rv = AB_Banking_Init(ab);
+	} else {
+		acct->ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
+		rv = AB_Banking_Init(acct->ab);
+	}
+	if (rv) {
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not initialize (%d).", rv));
+		return 2;
+	}
+	if (acct == NULL) {
+		rv = AB_Banking_OnlineInit(ab);
+	} else {
+		rv = AB_Banking_OnlineInit(acct->ab);
+	}
+	if (rv) {
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online initialize (%d).", rv));
+		return 2;
+	}
+	
 		//Setzen der Call-backs
 		/*GWEN_Gui_SetProgressLogFn(this->gui, zProgressLog);
 		GWEN_Gui_SetCheckCertFn(this->gui, zCheckCert);
 		GWEN_Gui_SetMessageBoxFn(this->gui, zMessageBox);
 		GWEN_Gui_SetGetPasswordFn(this->gui, zPasswordFn);*/
 
-		return 0;
+	return 0;
 }
 
 int AB_free(aqbanking_Account *acct = NULL) {
-		int rv = 0;
+	int rv = 0;
 
-		if (acct == NULL) {
-			rv = AB_Banking_OnlineFini(ab);
-		} else {
-			rv = AB_Banking_OnlineFini(acct->ab);
-		}
-		if (rv) 
-		{
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online deinit. (%d).", rv));
-				return 3;
-		}
+	if (acct == NULL) {
+		rv = AB_Banking_OnlineFini(ab);
+	} else {
+		rv = AB_Banking_OnlineFini(acct->ab);
+	}
+	if (rv) 
+	{
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online deinit. (%d).", rv));
+		return 3;
+	}
 
-		if (acct == NULL) {
-			rv = AB_Banking_Fini(ab);
-		} else {
-			rv = AB_Banking_Fini(acct->ab);
-		}
-		if (rv) 
-		{
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do deinit. (%d).", rv));
-				return 3;
-		}
+	if (acct == NULL) {
+		rv = AB_Banking_Fini(ab);
+	} else {
+		rv = AB_Banking_Fini(acct->ab);
+	}
+	if (rv) 
+	{
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do deinit. (%d).", rv));
+		return 3;
+	}
 
-		if (acct == NULL) {
-			AB_Banking_free(ab);
-		} else {
-			AB_Banking_free(acct->ab);
-		}
-		return 0;
+	if (acct == NULL) {
+		AB_Banking_free(ab);
+	} else {
+		AB_Banking_free(acct->ab);
+	}
+	return 0;
 }
 
 //***** HERE THE AQBANKING PYTHON ITSELF STARTS ****
@@ -507,7 +507,7 @@ static int aqbanking_Account_init(aqbanking_Account *self, PyObject *args, PyObj
 	PyObject *no=NULL, *name=NULL, *description=NULL, *bank_code=NULL, *bank_name=NULL, *tmp;
 	static char *kwlist[] = {"no", "name", "description", "bank_code", "bank_name", NULL};
 	if (! PyArg_ParseTupleAndKeywords(args, kwds, "|OOOOO", kwlist,
-									  &no, &name, &description, &bank_code, &bank_name))
+		&no, &name, &description, &bank_code, &bank_name))
 		return -1;
 
 	if (no) {
@@ -948,15 +948,15 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 
 #ifdef DEBUGSTDERR
 				fprintf(stderr, "[%-10d]: [%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
-						AB_Transaction_GetUniqueId(t),
-						AB_Transaction_GetRemoteIban(t),
-						AB_Transaction_GetRemoteBic(t),
-						AB_Transaction_GetRemoteAccountNumber(t),
-						AB_Transaction_GetRemoteBankCode(t),
-						purpose,
-						AB_Value_GetValueAsDouble(v),
-						AB_Value_GetCurrency(v)
-				);
+					AB_Transaction_GetUniqueId(t),
+					AB_Transaction_GetRemoteIban(t),
+					AB_Transaction_GetRemoteBic(t),
+					AB_Transaction_GetRemoteAccountNumber(t),
+					AB_Transaction_GetRemoteBankCode(t),
+					purpose,
+					AB_Value_GetValueAsDouble(v),
+					AB_Value_GetCurrency(v)
+					);
 #endif
 
 				tdtime = AB_Transaction_GetDate(t);
@@ -1001,7 +1001,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					trans->localName = Py_None;
 					Py_INCREF(Py_None);
 				} else {
-				        trans->localName = PyUnicode_FromString(AB_Transaction_GetLocalName(t));
+					trans->localName = PyUnicode_FromString(AB_Transaction_GetLocalName(t));
 				}
 
 				// Remote user
@@ -1088,35 +1088,35 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				switch(state)
 				{
 					case AB_Transaction_StatusUnknown:
-						trans->state = -1;
-						break;
+					trans->state = -1;
+					break;
 					case AB_Transaction_StatusNone:
-						trans->state = 0;
-						break;
+					trans->state = 0;
+					break;
 					case AB_Transaction_StatusAccepted:
-						trans->state = 1;
-						break;
+					trans->state = 1;
+					break;
 					case AB_Transaction_StatusRejected:
-						trans->state = 2;
-						break;
+					trans->state = 2;
+					break;
 					case AB_Transaction_StatusPending:
-						trans->state = 4;
-						break;
+					trans->state = 4;
+					break;
 					case AB_Transaction_StatusSending:
-						trans->state = 8;
-						break;
+					trans->state = 8;
+					break;
 					case AB_Transaction_StatusAutoReconciled:
-						trans->state = 16;
-						break;
+					trans->state = 16;
+					break;
 					case AB_Transaction_StatusManuallyReconciled:
-						trans->state = 32;
-						break;
+					trans->state = 32;
+					break;
 					case AB_Transaction_StatusRevoked:
-						trans->state = 64;
-						break;
+					trans->state = 64;
+					break;
 					case AB_Transaction_StatusAborted:
-						trans->state = 128;
-						break;
+					trans->state = 128;
+					break;
 				}
 
 				PyList_Append(transList, (PyObject *)trans);
@@ -1163,11 +1163,11 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 #endif
 	
 	const char *remoteName=NULL, 
-				*remoteIban=NULL,
-				*remoteBic=NULL,
-				*purpose=NULL,
-				*endToEndReference=NULL,
-				*textKey=NULL;
+	*remoteIban=NULL,
+	*remoteBic=NULL,
+	*purpose=NULL,
+	*endToEndReference=NULL,
+	*textKey=NULL;
 	const double value=0.0;
 	const char *delim = "\n";
 
