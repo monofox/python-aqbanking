@@ -76,6 +76,8 @@ typedef struct {
 	PyObject *customerReference;
 	PyObject *bankReference;
 	PyObject *endToEndReference;
+	PyObject *fiId;
+	PyObject *primaNota;
 	int state;
 
 } aqbanking_Transaction;
@@ -182,6 +184,8 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->customerReference);
 	Py_XDECREF(self->bankReference);
 	Py_XDECREF(self->endToEndReference);
+	Py_XDECREF(self->fiId);
+	Py_XDECREF(self->primaNota);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -390,6 +394,8 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"customerReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, customerReference), 0, "Customer Reference"},
 	{"bankReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, bankReference), 0, "Bank Reference"},
 	{"endToEndReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, endToEndReference), 0, "End-To-End Reference"},
+	{"fiId", T_OBJECT_EX, offsetof(aqbanking_Transaction, fiId), 0, "FiID"},
+	{"primaNota", T_OBJECT_EX, offsetof(aqbanking_Transaction, primaNota), 0, "Prima Nota"},
 	{NULL}
 };
 
@@ -601,6 +607,26 @@ static PyObject *aqbanking_Account_set_callbackPassword(aqbanking_Account* self,
 	return result;
 }
 
+static PyObject *aqbanking_Account_set_callbackCheckCert(aqbanking_Account* self, PyObject *args)
+{
+	PyObject *result = NULL;
+	PyObject *temp;
+
+	if (PyArg_ParseTuple(args, "O:set_callbackCheckCert", &temp)) {
+		if (!PyCallable_Check(temp)) {
+			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+			return NULL;
+		}
+		Py_XINCREF(temp);         /* Add a reference to new callback */
+		Py_XDECREF(self->aqh->callbackCheckCert);  /* Dispose of previous callback */
+		self->aqh->callbackCheckCert = temp;       /* Remember new callback */
+		/* Boilerplate to return "None" */
+		Py_INCREF(Py_None);
+		result = Py_None;
+	}
+	return result;
+}
+
 static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
 	const AB_ACCOUNT_STATUS * status;
@@ -610,6 +636,19 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	double balance;
 	const char *bank_code; 
 	const char *account_no; 
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{                       
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
 #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
@@ -624,16 +663,6 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	AB_JOB_LIST2 *jl = 0;
 	AB_IMEXPORTER_CONTEXT *ctx = 0;
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -691,7 +720,20 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	AB_ACCOUNT *a;	
 	const char *bank_code;
 	const char *account_no;
-#if PY_VERSION_HEX >= 0x03030000
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{                       
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
+ #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
 #else
@@ -701,16 +743,6 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	account_no = PyBytes_AS_STRING(s);
 #endif
 	PyObject *featList = PyList_New(0);
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -774,6 +806,19 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	double tmpDateTime = 0;
 	const char *bank_code;
 	const char *account_no;
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
 #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
@@ -798,16 +843,6 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
 	/*aqbanking_Transaction *trans = NULL;*/
 	PyObject *transList = PyList_New(0);
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -1038,6 +1073,16 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				} else {
 					trans->endToEndReference = PyUnicode_FromString(AB_Transaction_GetEndToEndReference(t));
 				}
+				if (AB_Transaction_GetFiId(t) == NULL) {
+					trans->fiId = PyUnicode_FromString("");
+				} else {
+					trans->fiId = PyUnicode_FromString(AB_Transaction_GetFiId(t));
+				}
+				if (AB_Transaction_GetPrimanota(t) == NULL) {
+					trans->primaNota = PyUnicode_FromString("");
+				} else {
+					trans->primaNota = PyUnicode_FromString(AB_Transaction_GetPrimanota(t));
+				}
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
 				switch(state)
@@ -1249,6 +1294,7 @@ static PyMethodDef aqbanking_Account_methods[] = {
 #endif	
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
+	{"set_callbackCheckCert", (PyCFunction)aqbanking_Account_set_callbackCheckCert, METH_VARARGS, "Adds a callback to check the certificate."},
 	{NULL}  /* Sentinel */
 };
 
