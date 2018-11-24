@@ -605,6 +605,26 @@ static PyObject *aqbanking_Account_set_callbackPassword(aqbanking_Account* self,
 	return result;
 }
 
+static PyObject *aqbanking_Account_set_callbackCheckCert(aqbanking_Account* self, PyObject *args)
+{
+	PyObject *result = NULL;
+	PyObject *temp;
+
+	if (PyArg_ParseTuple(args, "O:set_callbackCheckCert", &temp)) {
+		if (!PyCallable_Check(temp)) {
+			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+			return NULL;
+		}
+		Py_XINCREF(temp);         /* Add a reference to new callback */
+		Py_XDECREF(self->aqh->callbackCheckCert);  /* Dispose of previous callback */
+		self->aqh->callbackCheckCert = temp;       /* Remember new callback */
+		/* Boilerplate to return "None" */
+		Py_INCREF(Py_None);
+		result = Py_None;
+	}
+	return result;
+}
+
 static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
 	const AB_ACCOUNT_STATUS * status;
@@ -1140,6 +1160,7 @@ static PyMethodDef aqbanking_Account_methods[] = {
 	{"availableJobs", (PyCFunction)aqbanking_Account_available_jobs, METH_VARARGS | METH_KEYWORDS, "Get a list of available jobs."},
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
+	{"set_callbackCheckCert", (PyCFunction)aqbanking_Account_set_callbackCheckCert, METH_VARARGS, "Adds a callback to check the certificate."},
 	{NULL}  /* Sentinel */
 };
 

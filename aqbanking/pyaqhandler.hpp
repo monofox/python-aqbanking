@@ -22,6 +22,7 @@ public:
 	 */
 	PyObject *callbackLog;
 	PyObject *callbackPassword;
+	PyObject *callbackCheckCert;
 
 protected:
 	virtual int logHook(const char* logDomain, GWEN_LOGGER_LEVEL level, const char *s);
