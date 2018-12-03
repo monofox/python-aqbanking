@@ -50,6 +50,8 @@ New is a function in order to get the information, which jobs or features are av
 `acc.availableJobs()`
 Implemented is: `nationalTransfer` and `sepaTransfer`.
 
+Furthermore if you're doing some transfer you're partially asked to enter three times the password. Now you can build your PIN cache with help of the `set_callbackPasswordStatus` function. This calls the python callback with parameters `token`, `pin` and `status` whereas the status field can be 9 = reset, 1 = Bad password, 2 = Remove password and 0 = all went fine.
+
 Known Bugs/Missing features
 ===========================
 Right now, this extension does not support the Smartcard/Chipcard procedure for authentication. This is planned for the future, but will need time in order to write the corresponding backend.

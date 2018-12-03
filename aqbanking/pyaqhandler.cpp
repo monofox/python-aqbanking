@@ -28,10 +28,6 @@ int PyAqHandler::setPasswordStatus(const char *token, const char *pin,
 		} else if (status == GWEN_Gui_PasswordStatus_Remove) {
 			pystat = 2;
 		}
-		// FIXME: add new callback for this!
-#ifdef DEBUGSTDERR
-		fprintf(stderr, "%s / %s / %d\n", token, pin, pystat);
-#endif
 	}
 
 	if (this->callbackPasswordStatus != NULL) {

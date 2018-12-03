@@ -1173,6 +1173,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	int rv;
 	AB_ACCOUNT *a;
 	AB_JOB_LIST2 *jl;
+	PyObject *result = NULL;
 	const char *bank_code;
 	const char *account_no;
 #if PY_VERSION_HEX >= 0x03030000
@@ -1191,7 +1192,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	*purpose=NULL,
 	*endToEndReference=NULL,
 	*textKey=NULL;
-	const double value=0.0;
+	double value = 0.00;
 	const char *delim = "\n";
 
 	static char *kwlist[] = {"remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
@@ -1294,12 +1295,14 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 
 	// Exit aqbanking.
 	rv = AB_free(self);
-	if (rv > 0)
+	/*if (rv > 0)
 	{
 		return NULL;
-	}
+	}*/
 
-	return NULL;
+	Py_INCREF(Py_None);
+	result = Py_None;
+	return result;
 
 }
 #endif
