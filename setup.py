@@ -7,16 +7,20 @@ import os
 
 # retrieve the README
 def read(fname):
-	return open(os.path.join(os.path.dirname(__file__), fname)).read()
+	f = open(os.path.join(os.path.dirname(__file__), fname))
+	cnt = f.read()
+	f.close()
+	return cnt
 
 module1 = Extension('aqbanking',
 	libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
 	include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5', '/usr/local/include/gwenhywfar4', '/usr/local/include/aqbanking5'],
 	# for compiling debug with python debug:
-	extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG', '-DDEBUGSTDERR', '-DFENQUEJOB'],
+	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# for compiling debug without python debug
-	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
-	#extra_compile_args=['-Wunused-variable', '-Wunused-function'],
+	extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
+	# RELEASE parameter for compilation:
+	#extra_compile_args=['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB'],
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
 )
 

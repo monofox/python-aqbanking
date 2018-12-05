@@ -5,16 +5,116 @@
 #include <gwenhywfar/version.h>
 #include <gwenhywfar/cgui.h>
 #include <gwenhywfar/gui_be.h>
+#include <gwenhywfar/debug.h>
+#include <gwen-gui-cpp/cppdialog.hpp>
+#include <gwen-gui-cpp/cppwidget.hpp>
 #include "pyaqhandler.hpp"
 
 PyAqHandler::PyAqHandler() : CppGui()
 {
 	GWEN_Logger_SetLevel(0, GWEN_LoggerLevel_Verbous);
 	GWEN_Gui_SetGui(this->_gui);
+	GWEN_Gui_AddFlags(_gui, GWEN_GUI_FLAGS_DIALOGSUPPORTED);
+	GWEN_Gui_SetName(_gui, "pyaq-gui");
 	this->callbackLog = NULL;
 	this->callbackPassword = NULL;
 	this->callbackCheckCert = NULL;
 	this->callbackPasswordStatus = NULL;
+}
+
+int PyAqHandler::setupDialog(GWEN_WIDGET *w) {
+	CppWidget *xw=NULL;
+	printf("GWEN Dialog Widget: %d (%s)\n\n", 
+		GWEN_Widget_GetType(w), 
+		GWEN_Widget_Type_toString(GWEN_Widget_GetType(w)));
+
+
+	switch(GWEN_Widget_GetType(w)) {
+		case GWEN_Widget_TypeLabel:
+			xw = new CppWidget(w);
+			const char *s;
+			const char *name;
+			name=xw->getName();
+			s=xw->getText(0);
+			printf("Got text in label %s: %s\n", name, s);
+			break;
+		case GWEN_Widget_TypeDialog:
+		case GWEN_Widget_TypeVLayout:
+		case GWEN_Widget_TypeHLayout:
+		case GWEN_Widget_TypeGridLayout:
+		case GWEN_Widget_TypeLineEdit:
+		case GWEN_Widget_TypeVSpacer:
+		case GWEN_Widget_TypeHSpacer:
+		case GWEN_Widget_TypePushButton:
+		case GWEN_Widget_TypeHLine:
+		case GWEN_Widget_TypeVLine:
+		case GWEN_Widget_TypeTextEdit:
+		case GWEN_Widget_TypeComboBox:
+		case GWEN_Widget_TypeTabBook:
+		case GWEN_Widget_TypeTabPage:
+		case GWEN_Widget_TypeCheckBox:
+		case GWEN_Widget_TypeGroupBox:
+		case GWEN_Widget_TypeWidgetStack:
+		case GWEN_Widget_TypeTextBrowser:
+		case GWEN_Widget_TypeScrollArea:
+		case GWEN_Widget_TypeProgressBar:
+		case GWEN_Widget_TypeListBox:
+		case GWEN_Widget_TypeRadioButton:
+		case GWEN_Widget_TypeSpinBox:
+		default:
+			DBG_ERROR(GWEN_LOGDOMAIN, "Unhandled widget type %d (%s)",
+				GWEN_Widget_GetType(w), GWEN_Widget_Type_toString(GWEN_Widget_GetType(w)));
+			break;
+	}
+
+	GWEN_WIDGET *wChild;
+	wChild=GWEN_Widget_Tree_GetFirstChild(w);
+	while(wChild) {
+		setupDialog(wChild);
+		wChild=GWEN_Widget_Tree_GetNext(wChild);
+	}
+
+	return 0;
+}
+
+int PyAqHandler::openDialog(GWEN_DIALOG *dlg, uint32_t guiid) {
+	printf("PyAqHandler::OpenDialog\n");
+	// Finally this should be passed sometime to python.
+	// For now we need also to extract data.
+	CppDialog *cppDlg = new CppDialog(dlg);
+	GWEN_DIALOG *gwd = cppDlg->getCInterface();
+	GWEN_WIDGET *w;
+	GWEN_WIDGET_TREE *wtree = GWEN_Dialog_GetWidgets(gwd);
+	// We need a tree
+	if (wtree==NULL) {
+		DBG_ERROR(GWEN_LOGDOMAIN, "No widget tree in dialog");
+		return GWEN_ERROR_GENERIC;
+	}
+
+	// First child.
+	w=GWEN_Widget_Tree_GetFirst(wtree);
+	if (w==NULL) {
+		DBG_ERROR(GWEN_LOGDOMAIN, "No widgets in dialog");
+		return GWEN_ERROR_GENERIC;
+	}
+	printf("GWEN Dialog Widget: %d (%s)\n\n", 
+		GWEN_Widget_GetType(w), 
+		GWEN_Widget_Type_toString(GWEN_Widget_GetType(w)));
+
+	w=GWEN_Widget_Tree_GetFirstChild(w);
+	while(w) {
+		setupDialog(w);
+		w=GWEN_Widget_Tree_GetNext(w);
+	}
+
+	return 0;
+}
+
+
+
+int PyAqHandler::closeDialog(GWEN_DIALOG *dlg) {
+	printf("PyAqHandler::CloseDialog\n");
+  	return 0;
 }
 
 int PyAqHandler::setPasswordStatus(const char *token, const char *pin, 

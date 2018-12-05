@@ -659,6 +659,7 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	double balance;
 	const char *bank_code; 
 	const char *account_no; 
+	PyObject *currency;
 
 	// Check if all necessary data in account object is given!
 	if (self->no == NULL)
@@ -708,19 +709,23 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	job = AB_JobGetBalance_new(a);
 	AB_Job_List2_PushBack(jl, job);
 	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
-
-	if (rv)
+	if (rv > 0)
 	{
 		PyErr_SetString(ExecutionFailed, "Could not get the balance!");
 		return NULL;
 	}
 
 	// With success. No process the result.
-	ai = AB_ImExporterContext_GetFirstAccountInfo (ctx);
-	status = AB_ImExporterAccountInfo_GetFirstAccountStatus (ai);
-	bal = AB_AccountStatus_GetBookedBalance (status);
-	v = AB_Balance_GetValue (bal);
+	ai = AB_ImExporterContext_GetFirstAccountInfo(ctx);
+	if (ai == NULL) {
+		PyErr_SetString(ExecutionFailed, "Could not retrieve balance.");
+		return NULL;		
+	}
+	status = AB_ImExporterAccountInfo_GetFirstAccountStatus(ai);
+	bal = AB_AccountStatus_GetBookedBalance(status);
+	v = AB_Balance_GetValue(bal);
 	balance = AB_Value_GetValueAsDouble(v);
+	currency = PyUnicode_FromString(AB_Value_GetCurrency(v));
 
 	// Free jobs.
 	AB_Job_List2_free(jl);
@@ -730,11 +735,11 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	rv = AB_free(self);
 	if (rv > 0)
 	{
+		PyErr_SetString(ExecutionFailed, "Could not free up aqbanking.");
 		return NULL;
 	}
 
-	// FIXME: currency!
-	return Py_BuildValue("(d,s)", balance, "EUR");
+	return Py_BuildValue("(d,O)", balance, currency);
 }
 
 static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObject *args, PyObject *keywds)
@@ -1066,7 +1071,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				}
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
-				trans->currency = PyUnicode_FromString("EUR");
+				trans->currency = PyUnicode_FromString(AB_Value_GetCurrency(v));
 				trans->uniqueId = PyLong_FromLong(AB_Transaction_GetUniqueId(t));
 				if (AB_Transaction_GetTransactionText(t) == NULL) {
 					trans->transactionText = PyUnicode_FromString("");

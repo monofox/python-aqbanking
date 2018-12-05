@@ -52,9 +52,11 @@ Implemented is: `nationalTransfer` and `sepaTransfer`.
 
 Furthermore if you're doing some transfer you're partially asked to enter three times the password. Now you can build your PIN cache with help of the `set_callbackPasswordStatus` function. This calls the python callback with parameters `token`, `pin` and `status` whereas the status field can be 9 = reset, 1 = Bad password, 2 = Remove password and 0 = all went fine.
 
+You can find some examples inside of the `examples/` folder.
+
 Known Bugs/Missing features
 ===========================
-Right now, this extension does not support the Smartcard/Chipcard procedure for authentication. This is planned for the future, but will need time in order to write the corresponding backend.
+Smartcard/Chipcard support meanwhile integrated. But no "text" that user has to enter something on the readers panel is provided. 
 
 The server certificate of the HTTPS connection is not validated at the moment, so do not use it for sensitive data, as man in the middle attack is possible without notice.
 
