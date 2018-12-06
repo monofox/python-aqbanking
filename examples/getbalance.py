@@ -21,7 +21,7 @@ def passwordStatus_cb(token, pin, status):
     if status == 2 or status == 1:
         try:
             del(cachedPasswords[token])
-        except:
+        except KeyError:
             pass
     elif status == 0:
         cachedPasswords[token] = pin
@@ -30,7 +30,7 @@ def password_cb(flags, token, title, text, minLen, maxLen):
     # Ask only, if we didn't asked already for a PIN.
     try:
         return cachedPasswords[token]
-    except:
+    except KeyError:
         plainText = text if '<html>' not in text else text[:text.find('<html>')].replace('\r', '').replace('\n', '')
         pin = getpass.getpass('%s: ' % (plainText,))
         return pin
