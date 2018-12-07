@@ -1,7 +1,7 @@
 AqBanking API for Python
 ========================
 
-[![Build Status](https://travis-ci.org/monofox/python-aqbanking.svg?branch=master)](https://travis-ci.org/monofox/python-aqbanking)
+[![Build Status](https://travis-ci.org/monofox/python-aqbanking.svg?branch=master)](https://travis-ci.org/monofox/python-aqbanking) [![CodeFactor](https://www.codefactor.io/repository/github/monofox/python-aqbanking/badge)](https://www.codefactor.io/repository/github/monofox/python-aqbanking)
 
 This is a python wrapper for AqBanking - so of course you need the AqBanking and Gwenhywfar dependencies 
 installed for a successful compilation. The only supported things at the moment: get balance of an account, 
