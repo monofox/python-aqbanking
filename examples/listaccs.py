@@ -21,7 +21,7 @@ def passwordStatus_cb(token, pin, status):
     if status == 2 or status == 1:
         try:
             del(cachedPasswords[token])
-    	except KeyError:
+        except KeyError:
             pass
     elif status == 0:
         cachedPasswords[token] = pin
