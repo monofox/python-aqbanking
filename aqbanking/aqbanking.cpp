@@ -44,7 +44,6 @@ typedef struct {
 
 	PyAqHandler *aqh;
 	AB_BANKING *ab;
-
 } aqbanking_Account;
 
 /**
@@ -79,11 +78,9 @@ typedef struct {
 	PyObject *fiId;
 	PyObject *primaNota;
 	int state;
-
 } aqbanking_Transaction;
 
 int AB_create(aqbanking_Account *acct = NULL) {
-
 	int rv = 0;
 
 	// Initialisierungen GWEN
@@ -494,7 +491,6 @@ static PyObject *aqbanking_Account_New(PyTypeObject *type, PyObject *args, PyObj
 			Py_DECREF(self);
 			return NULL;
 		}
-
 	}
 
 	self->aqh = NULL;
@@ -825,7 +821,6 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	}
 
 	return featList;
-
 }
 
 static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObject *args, PyObject *kwds)
@@ -1308,7 +1303,6 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	Py_INCREF(Py_None);
 	result = Py_None;
 	return result;
-
 }
 #endif
 
