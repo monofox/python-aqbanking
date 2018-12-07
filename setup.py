@@ -18,15 +18,15 @@ module1 = Extension('aqbanking',
 	# for compiling debug with python debug:
 	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# for compiling debug without python debug
-	extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
+	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# RELEASE parameter for compilation:
-	#extra_compile_args=['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB'],
+	extra_compile_args=['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB'],
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
 )
 
 setup (
 	name = 'python-aqbanking',
-	version = '0.0.5',
+	version = '0.0.6',
 	description = 'This is a python wrapper for AqBanking',
 	long_description = read('README.md'),
 	license = 'GPLv3+',
