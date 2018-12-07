@@ -14,7 +14,6 @@ static PyObject *AqBankingDeInitializeError;
  * This handles all request and so it also gives the opportunity to have handlers per account!
  */
 class PyAqHandler : public CppGui {
-
 public:
 	PyAqHandler();
 

@@ -47,5 +47,5 @@ dateTo = now.strftime('%Y%m%d')
 ret = acc.transactions(dateFrom, dateTo)
 import pprint
 pprint.pprint(ret)
-if len(ret) > 0:
+if ret:
     print(ret[0].value, ret[0].currency)
