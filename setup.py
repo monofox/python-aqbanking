@@ -7,7 +7,10 @@ import os
 
 # retrieve the README
 def read(fname):
-	return open(os.path.join(os.path.dirname(__file__), fname)).read()
+	f = open(os.path.join(os.path.dirname(__file__), fname))
+	cnt = f.read()
+	f.close()
+	return cnt
 
 module1 = Extension('aqbanking',
 	libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
@@ -15,14 +18,15 @@ module1 = Extension('aqbanking',
 	# for compiling debug with python debug:
 	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# for compiling debug without python debug
-	extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
-	#extra_compile_args=['-Wunused-variable', '-Wunused-function'],
+	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
+	# RELEASE parameter for compilation:
+	extra_compile_args=['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB'],
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
 )
 
 setup (
 	name = 'python-aqbanking',
-	version = '0.0.3',
+	version = '0.0.6',
 	description = 'This is a python wrapper for AqBanking',
 	long_description = read('README.md'),
 	license = 'GPLv3+',

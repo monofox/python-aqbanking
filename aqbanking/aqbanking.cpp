@@ -44,7 +44,6 @@ typedef struct {
 
 	PyAqHandler *aqh;
 	AB_BANKING *ab;
-
 } aqbanking_Account;
 
 /**
@@ -73,83 +72,86 @@ typedef struct {
 	PyObject *textKey;
 	PyObject *textKeyExt;
 	PyObject *sepaMandateId;
+	PyObject *customerReference;
+	PyObject *bankReference;
+	PyObject *endToEndReference;
+	PyObject *fiId;
+	PyObject *primaNota;
 	int state;
-
 } aqbanking_Transaction;
 
 int AB_create(aqbanking_Account *acct = NULL) {
+	int rv = 0;
 
-		int rv = 0;
+	// Initialisierungen GWEN
+	if (acct == NULL) {
+		GWEN_Gui_SetGui(aqh->getCInterface());
+	} else {
+		GWEN_Gui_SetGui(acct->aqh->getCInterface());
+	}
 
-		//Initialisierungen GWEN
-		if (acct == NULL) {
-			GWEN_Gui_SetGui(aqh->getCInterface());
-		} else {
-			GWEN_Gui_SetGui(acct->aqh->getCInterface());
-		}
+	// Initialisierungen AB
+	if (acct == NULL) {
+		ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
+		rv = AB_Banking_Init(ab);
+	} else {
+		acct->ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
+		rv = AB_Banking_Init(acct->ab);
+	}
+	if (rv) {
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not initialize (%d).", rv));
+		return 2;
+	}
+	if (acct == NULL) {
+		rv = AB_Banking_OnlineInit(ab);
+	} else {
+		rv = AB_Banking_OnlineInit(acct->ab);
+	}
+	if (rv) {
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online initialize (%d).", rv));
+		return 2;
+	}
 
-		// Initialisierungen AB
-		if (acct == NULL) {
-			ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
-			rv = AB_Banking_Init(ab);
-		} else {
-			acct->ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
-			rv = AB_Banking_Init(acct->ab);
-		}
-		if (rv) {
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not initialize (%d).", rv));
-				return 2;
-		}
-		if (acct == NULL) {
-			rv = AB_Banking_OnlineInit(ab);
-		} else {
-			rv = AB_Banking_OnlineInit(acct->ab);
-		}
-		if (rv) {
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online initialize (%d).", rv));
-				return 2;
-		}
-		
-		//Setzen der Call-backs
-		/*GWEN_Gui_SetProgressLogFn(this->gui, zProgressLog);
-		GWEN_Gui_SetCheckCertFn(this->gui, zCheckCert);
-		GWEN_Gui_SetMessageBoxFn(this->gui, zMessageBox);
-		GWEN_Gui_SetGetPasswordFn(this->gui, zPasswordFn);*/
+	//Setzen der Call-backs
+	/*GWEN_Gui_SetProgressLogFn(this->gui, zProgressLog);
+	GWEN_Gui_SetCheckCertFn(this->gui, zCheckCert);
+	GWEN_Gui_SetMessageBoxFn(this->gui, zMessageBox);
+	GWEN_Gui_SetGetPasswordFn(this->gui, zPasswordFn);*/
 
-		return 0;
+	return 0;
 }
 
 int AB_free(aqbanking_Account *acct = NULL) {
-		int rv = 0;
+	int rv = 0;
 
-		if (acct == NULL) {
-			rv = AB_Banking_OnlineFini(ab);
-		} else {
-			rv = AB_Banking_OnlineFini(acct->ab);
-		}
-		if (rv) 
-		{
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online deinit. (%d).", rv));
-				return 3;
-		}
+	if (acct == NULL) {
+		rv = AB_Banking_OnlineFini(ab);
+	} else {
+		rv = AB_Banking_OnlineFini(acct->ab);
+	}
+	if (rv) 
+	{
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online deinit. (%d).", rv));
+		return 3;
+	}
 
-		if (acct == NULL) {
-			rv = AB_Banking_Fini(ab);
-		} else {
-			rv = AB_Banking_Fini(acct->ab);
-		}
-		if (rv) 
-		{
-				PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do deinit. (%d).", rv));
-				return 3;
-		}
+	if (acct == NULL) {
+		rv = AB_Banking_Fini(ab);
+	} else {
+		rv = AB_Banking_Fini(acct->ab);
+	}
+	if (rv) 
+	{
+		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do deinit. (%d).", rv));
+		return 3;
+	}
 
-		if (acct == NULL) {
-			AB_Banking_free(ab);
-		} else {
-			AB_Banking_free(acct->ab);
-		}
-		return 0;
+	if (acct == NULL) {
+		AB_Banking_free(ab);
+	} else {
+		AB_Banking_free(acct->ab);
+	}
+	return 0;
 }
 
 //***** HERE THE AQBANKING PYTHON ITSELF STARTS ****
@@ -176,6 +178,11 @@ static void aqbanking_Transaction_dealloc(aqbanking_Transaction* self)
 	Py_XDECREF(self->textKey);
 	Py_XDECREF(self->textKeyExt);
 	Py_XDECREF(self->sepaMandateId);
+	Py_XDECREF(self->customerReference);
+	Py_XDECREF(self->bankReference);
+	Py_XDECREF(self->endToEndReference);
+	Py_XDECREF(self->fiId);
+	Py_XDECREF(self->primaNota);
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -381,6 +388,11 @@ static PyMemberDef aqbanking_Transaction_members[] = {
 	{"textKey", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKey), 0, "A numerical transaction code (Textschlüssel)"},
 	{"textKeyExt", T_OBJECT_EX, offsetof(aqbanking_Transaction, textKeyExt), 0, "An extension to the text key (Textschlüsselergänzung)"},
 	{"sepaMandateId", T_OBJECT_EX, offsetof(aqbanking_Transaction, sepaMandateId), 0, "Mandate ID of a SEPA mandate for SEPA direct debits"},
+	{"customerReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, customerReference), 0, "Customer Reference"},
+	{"bankReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, bankReference), 0, "Bank Reference"},
+	{"endToEndReference", T_OBJECT_EX, offsetof(aqbanking_Transaction, endToEndReference), 0, "End-To-End Reference"},
+	{"fiId", T_OBJECT_EX, offsetof(aqbanking_Transaction, fiId), 0, "FiID"},
+	{"primaNota", T_OBJECT_EX, offsetof(aqbanking_Transaction, primaNota), 0, "Prima Nota"},
 	{NULL}
 };
 
@@ -479,7 +491,6 @@ static PyObject *aqbanking_Account_New(PyTypeObject *type, PyObject *args, PyObj
 			Py_DECREF(self);
 			return NULL;
 		}
-
 	}
 
 	self->aqh = NULL;
@@ -492,7 +503,7 @@ static int aqbanking_Account_init(aqbanking_Account *self, PyObject *args, PyObj
 	PyObject *no=NULL, *name=NULL, *description=NULL, *bank_code=NULL, *bank_name=NULL, *tmp;
 	static char *kwlist[] = {"no", "name", "description", "bank_code", "bank_name", NULL};
 	if (! PyArg_ParseTupleAndKeywords(args, kwds, "|OOOOO", kwlist,
-									  &no, &name, &description, &bank_code, &bank_name))
+		&no, &name, &description, &bank_code, &bank_name))
 		return -1;
 
 	if (no) {
@@ -615,68 +626,23 @@ static PyObject *aqbanking_Account_set_callbackPasswordStatus(aqbanking_Account*
 	return result;
 }
 
-static PyObject *aqbanking_Account_set_callbackGui(aqbanking_Account* self, PyObject *args, PyObject *kwds)
+static PyObject *aqbanking_Account_set_callbackCheckCert(aqbanking_Account* self, PyObject *args)
 {
 	PyObject *result = NULL;
-	PyObject *tempCallbackOpenDialog;
-	PyObject *tempCallbackCloseDialog;
-	PyObject *tempCallbackExecDialog;
-	PyObject *tempCallbackRunDialog;
-	PyObject *tempCallbackPrint;
+	PyObject *temp;
 
-	static char *kwlist[] = {
-		"callbackOpenDialog", "callbackCloseDialog", "callbackExecDialog", "callbackRunDialog", "callbackPrint", NULL
-	};
-	if (! PyArg_ParseTupleAndKeywords(
-		args, kwds, "|OOOOO", kwlist, &tempCallbackOpenDialog, &tempCallbackCloseDialog, &tempCallbackExecDialog, 
-			&tempCallbackRunDialog, &tempCallbackPrint))
-	{
-		return NULL;
+	if (PyArg_ParseTuple(args, "O:set_callbackCheckCert", &temp)) {
+		if (!PyCallable_Check(temp)) {
+			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+			return NULL;
+		}
+		Py_XINCREF(temp);         /* Add a reference to new callback */
+		Py_XDECREF(self->aqh->callbackCheckCert);  /* Dispose of previous callback */
+		self->aqh->callbackCheckCert = temp;       /* Remember new callback */
+		/* Boilerplate to return "None" */
+		Py_INCREF(Py_None);
+		result = Py_None;
 	}
-	
-	if (!PyCallable_Check(tempCallbackOpenDialog) && tempCallbackOpenDialog != NULL) {
-		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-		return NULL;
-	}
-	Py_XINCREF(tempCallbackOpenDialog);
-	Py_XDECREF(self->aqh->callbackOpenDialog);
-	self->aqh->callbackOpenDialog = tempCallbackOpenDialog;
-	
-	if (!PyCallable_Check(tempCallbackOpenDialog) && tempCallbackCloseDialog != NULL) {
-		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-		return NULL;
-	}
-	Py_XINCREF(tempCallbackCloseDialog);
-	Py_XDECREF(self->aqh->callbackCloseDialog);
-	self->aqh->callbackCloseDialog = tempCallbackCloseDialog;
-	
-	if (!PyCallable_Check(tempCallbackExecDialog) && tempCallbackExecDialog != NULL) {
-		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-		return NULL;
-	}
-	Py_XINCREF(tempCallbackExecDialog);
-	Py_XDECREF(self->aqh->callbackExecDialog);
-	self->aqh->callbackExecDialog = tempCallbackExecDialog;
-	
-	if (!PyCallable_Check(tempCallbackRunDialog) && tempCallbackRunDialog != NULL) {
-		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-		return NULL;
-	}
-	Py_XINCREF(tempCallbackRunDialog);
-	Py_XDECREF(self->aqh->callbackRunDialog);
-	self->aqh->callbackRunDialog = tempCallbackRunDialog;
-	
-	if (!PyCallable_Check(tempCallbackPrint) && tempCallbackPrint != NULL) {
-		PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-		return NULL;
-	}
-	Py_XINCREF(tempCallbackPrint);
-	Py_XDECREF(self->aqh->callbackPrint);
-	self->aqh->callbackPrint = tempCallbackPrint;
-	
-	/* Boilerplate to return "None" */
-	Py_INCREF(Py_None);
-	result = Py_None;
 	return result;
 }
 
@@ -689,6 +655,20 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	double balance;
 	const char *bank_code; 
 	const char *account_no; 
+	PyObject *currency;
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{                       
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
 #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
@@ -703,16 +683,6 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	AB_JOB_LIST2 *jl = 0;
 	AB_IMEXPORTER_CONTEXT *ctx = 0;
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -735,19 +705,23 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	job = AB_JobGetBalance_new(a);
 	AB_Job_List2_PushBack(jl, job);
 	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
-
-	if (rv)
+	if (rv > 0)
 	{
 		PyErr_SetString(ExecutionFailed, "Could not get the balance!");
 		return NULL;
 	}
 
 	// With success. No process the result.
-	ai = AB_ImExporterContext_GetFirstAccountInfo (ctx);
-	status = AB_ImExporterAccountInfo_GetFirstAccountStatus (ai);
-	bal = AB_AccountStatus_GetBookedBalance (status);
-	v = AB_Balance_GetValue (bal);
+	ai = AB_ImExporterContext_GetFirstAccountInfo(ctx);
+	if (ai == NULL) {
+		PyErr_SetString(ExecutionFailed, "Could not retrieve balance.");
+		return NULL;		
+	}
+	status = AB_ImExporterAccountInfo_GetFirstAccountStatus(ai);
+	bal = AB_AccountStatus_GetBookedBalance(status);
+	v = AB_Balance_GetValue(bal);
 	balance = AB_Value_GetValueAsDouble(v);
+	currency = PyUnicode_FromString(AB_Value_GetCurrency(v));
 
 	// Free jobs.
 	AB_Job_List2_free(jl);
@@ -757,11 +731,11 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	rv = AB_free(self);
 	if (rv > 0)
 	{
+		PyErr_SetString(ExecutionFailed, "Could not free up aqbanking.");
 		return NULL;
 	}
 
-	// FIXME: currency!
-	return Py_BuildValue("(d,s)", balance, "EUR");
+	return Py_BuildValue("(d,O)", balance, currency);
 }
 
 static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObject *args, PyObject *keywds)
@@ -770,7 +744,20 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	AB_ACCOUNT *a;	
 	const char *bank_code;
 	const char *account_no;
-#if PY_VERSION_HEX >= 0x03030000
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{                       
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
+ #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
 #else
@@ -780,16 +767,6 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	account_no = PyBytes_AS_STRING(s);
 #endif
 	PyObject *featList = PyList_New(0);
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -811,7 +788,7 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 
 	// Check availableJobs
 	// national transfer
-	PyObject *feature;
+	PyObject *feature = NULL;
 	AB_JOB *abJob = AB_JobSingleTransfer_new(a);
 	if (AB_Job_CheckAvailability(abJob) == 0) 
 	{
@@ -844,7 +821,6 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 	}
 
 	return featList;
-
 }
 
 static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObject *args, PyObject *kwds)
@@ -853,6 +829,19 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	double tmpDateTime = 0;
 	const char *bank_code;
 	const char *account_no;
+
+	// Check if all necessary data in account object is given!
+	if (self->no == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Account number not set.");
+		return NULL;
+	}
+	if (self->bank_code == NULL)
+	{
+		PyErr_SetString(PyExc_ValueError, "Bank code not set.");
+		return NULL;
+	}
+
 #if PY_VERSION_HEX >= 0x03030000
 	bank_code = PyUnicode_AsUTF8(self->bank_code);
 	account_no = PyUnicode_AsUTF8(self->no);
@@ -877,16 +866,6 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
 	/*aqbanking_Transaction *trans = NULL;*/
 	PyObject *transList = PyList_New(0);
-
-	// Valid data set?
-	if (self->no == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "no");
-	}
-	if (self->bank_code == NULL)
-	{
-		PyErr_SetString(PyExc_AttributeError, "bank_code");
-	}
 
 	// Initialize aqbanking.
 	rv = AB_create(self);
@@ -953,36 +932,54 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				const GWEN_STRINGLIST *sl;
 				const GWEN_TIME *tdtime;
 				const char *purpose;
+				char* purposeBuffer = NULL;
 				const char *remoteName;
 				aqbanking_Transaction *trans = (aqbanking_Transaction*) PyObject_CallObject((PyObject *) &aqbanking_TransactionType, NULL);
 
-				/* The purpose (memo field) might contain multiple lines.
-				 * Therefore AqBanking stores the purpose in a string list
-				 * of which the first entry is used in this tutorial */
 				sl = AB_Transaction_GetPurpose(t);
-				if (sl)
-				{
-					purpose = GWEN_StringList_FirstString(sl);
-					if (purpose == NULL) {
-						purpose = "";
-					}
-				}
-				else
-				{
+				if (!sl) {
 					purpose = "";
+				} else {
+					unsigned int count = GWEN_StringList_Count(sl);
+					if (!count) {
+						purpose = "";
+					} else {
+						unsigned int length = 0;
+						for (unsigned int i = 0; i < count; i++) {
+							length += strlen(GWEN_StringList_StringAt(sl, i));
+						}
+
+						if (!length) {
+							purpose = "";
+						} else {
+							purposeBuffer = (char*)malloc(length + 1);
+							if (!purposeBuffer) {
+								purpose = "";
+							} else {
+								char* rover = purposeBuffer;
+								for (unsigned int i = 0; i < count; i++) {
+									unsigned int stringLength = strlen(GWEN_StringList_StringAt(sl, i));
+									memcpy(rover, GWEN_StringList_StringAt(sl, i), stringLength);
+									rover += stringLength;
+								}
+								*rover = '\0';
+								purpose = purposeBuffer;
+							}
+						}
+					}
 				}
 
 #ifdef DEBUGSTDERR
 				fprintf(stderr, "[%-10d]: [%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
-						AB_Transaction_GetUniqueId(t),
-						AB_Transaction_GetRemoteIban(t),
-						AB_Transaction_GetRemoteBic(t),
-						AB_Transaction_GetRemoteAccountNumber(t),
-						AB_Transaction_GetRemoteBankCode(t),
-						purpose,
-						AB_Value_GetValueAsDouble(v),
-						AB_Value_GetCurrency(v)
-				);
+					AB_Transaction_GetUniqueId(t),
+					AB_Transaction_GetRemoteIban(t),
+					AB_Transaction_GetRemoteBic(t),
+					AB_Transaction_GetRemoteAccountNumber(t),
+					AB_Transaction_GetRemoteBankCode(t),
+					purpose,
+					AB_Value_GetValueAsDouble(v),
+					AB_Value_GetCurrency(v)
+					);
 #endif
 
 				tdtime = AB_Transaction_GetDate(t);
@@ -992,6 +989,11 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
 				trans->valutaDate = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
 				trans->purpose = PyUnicode_FromString(purpose);
+
+				if (purposeBuffer) {
+					free(purposeBuffer);
+					purposeBuffer = NULL;
+				}
 
 				// Local user
 				if (AB_Transaction_GetLocalAccountNumber(t) == NULL) {
@@ -1022,7 +1024,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					trans->localName = Py_None;
 					Py_INCREF(Py_None);
 				} else {
-				        trans->localName = PyUnicode_FromString(AB_Transaction_GetLocalName(t));
+					trans->localName = PyUnicode_FromString(AB_Transaction_GetLocalName(t));
 				}
 
 				// Remote user
@@ -1064,7 +1066,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				}
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
-				trans->currency = PyUnicode_FromString("EUR");
+				trans->currency = PyUnicode_FromString(AB_Value_GetCurrency(v));
 				trans->uniqueId = PyLong_FromLong(AB_Transaction_GetUniqueId(t));
 				if (AB_Transaction_GetTransactionText(t) == NULL) {
 					trans->transactionText = PyUnicode_FromString("");
@@ -1079,40 +1081,65 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				} else {
 					trans->sepaMandateId = PyUnicode_FromString(AB_Transaction_GetMandateId(t));
 				}
+				if (AB_Transaction_GetCustomerReference(t) == NULL) {
+					trans->customerReference = PyUnicode_FromString("");
+				} else {
+					trans->customerReference = PyUnicode_FromString(AB_Transaction_GetCustomerReference(t));
+				}
+				if (AB_Transaction_GetBankReference(t) == NULL) {
+					trans->bankReference = PyUnicode_FromString("");
+				} else {
+					trans->bankReference = PyUnicode_FromString(AB_Transaction_GetBankReference(t));
+				}
+				if (AB_Transaction_GetEndToEndReference(t) == NULL) {
+					trans->endToEndReference = PyUnicode_FromString("");
+				} else {
+					trans->endToEndReference = PyUnicode_FromString(AB_Transaction_GetEndToEndReference(t));
+				}
+				if (AB_Transaction_GetFiId(t) == NULL) {
+					trans->fiId = PyUnicode_FromString("");
+				} else {
+					trans->fiId = PyUnicode_FromString(AB_Transaction_GetFiId(t));
+				}
+				if (AB_Transaction_GetPrimanota(t) == NULL) {
+					trans->primaNota = PyUnicode_FromString("");
+				} else {
+					trans->primaNota = PyUnicode_FromString(AB_Transaction_GetPrimanota(t));
+				}
 				trans->state = 0;
 				state = AB_Transaction_GetStatus(t);
 				switch(state)
 				{
 					case AB_Transaction_StatusUnknown:
-						trans->state = -1;
-						break;
+					trans->state = -1;
+					break;
 					case AB_Transaction_StatusNone:
-						trans->state = 0;
-						break;
+					trans->state = 0;
+					break;
 					case AB_Transaction_StatusAccepted:
-						trans->state = 1;
-						break;
+					trans->state = 1;
+					break;
 					case AB_Transaction_StatusRejected:
-						trans->state = 2;
-						break;
+					trans->state = 2;
+					break;
 					case AB_Transaction_StatusPending:
-						trans->state = 4;
-						break;
+					trans->state = 4;
+					break;
 					case AB_Transaction_StatusSending:
-						trans->state = 8;
-						break;
+					trans->state = 8;
+					break;
 					case AB_Transaction_StatusAutoReconciled:
-						trans->state = 16;
-						break;
+					trans->state = 16;
+					break;
 					case AB_Transaction_StatusManuallyReconciled:
-						trans->state = 32;
-						break;
+					trans->state = 32;
+					break;
 					case AB_Transaction_StatusRevoked:
-						trans->state = 64;
-						break;
+					trans->state = 64;
+					break;
 					case AB_Transaction_StatusAborted:
-						trans->state = 128;
-						break;
+					trans->state = 128;
+					break;
 				}
 
 				PyList_Append(transList, (PyObject *)trans);
@@ -1146,7 +1173,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	int rv;
 	AB_ACCOUNT *a;
 	AB_JOB_LIST2 *jl;
-	AB_JOB_STATUS job_status;
+	PyObject *result = NULL;
 	const char *bank_code;
 	const char *account_no;
 #if PY_VERSION_HEX >= 0x03030000
@@ -1158,17 +1185,14 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
 	account_no = PyBytes_AS_STRING(s);
 #endif
-	
-	const char 	*localName=NULL,
-				*localIban=NULL,
-				*localBic=NULL,
-				*remoteName=NULL, 
-				*remoteIban=NULL,
-				*remoteBic=NULL,
-				*purpose=NULL,
-				*endToEndReference=NULL,
-				*textKey=NULL;
-	const double value=0.0;
+
+	const char *remoteName=NULL, 
+	*remoteIban=NULL,
+	*remoteBic=NULL,
+	*purpose=NULL,
+	*endToEndReference=NULL,
+	*textKey=NULL;
+	double value = 0.00;
 	const char *delim = "\n";
 
 	static char *kwlist[] = {"localName", "localIban", "localBic", "remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
@@ -1203,6 +1227,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 		PyErr_SetString(AccountNotFound, "Could not find the given account! ");
 		return NULL;
 	}
+	assert(a);
 
 	// Validate remote data...
 	rv = AB_Banking_CheckIban(localIban);
@@ -1225,65 +1250,68 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	AB_JOB *abJob = AB_JobSepaTransfer_new(a);
 	if (AB_Job_CheckAvailability(abJob) != 0) 
 	{
-		// Trigger error!!! TODO
 		PyErr_SetString(JobNotAvailable, "SEPA transfer job not available!");
+		AB_Job_free(abJob);
 		return NULL;
 	}
 
-	AB_TRANSACTION *AbTransaction = AB_Transaction_new();
+	AB_TRANSACTION *abTransaction = AB_Transaction_new();
+	// Basic data
+	AB_BANKING *abDetails = AB_Account_GetBanking(a);
+	assert(abDetails);
+	AB_Banking_FillGapsInTransaction(abDetails, a, abTransaction);
+
 	// Recipient
 	GWEN_STRINGLIST *remoteNameList = GWEN_StringList_fromString(remoteName, delim, 0);
-	AB_Transaction_SetRemoteName(AbTransaction, remoteNameList);
+	AB_Transaction_SetRemoteName(abTransaction, remoteNameList);
 	GWEN_StringList_free(remoteNameList);
-	AB_Transaction_SetRemoteIban(AbTransaction, remoteIban);
-	AB_Transaction_SetRemoteBic(AbTransaction, remoteBic);
+	AB_Transaction_SetRemoteIban(abTransaction, remoteIban);
+	AB_Transaction_SetRemoteBic(abTransaction, remoteBic);
 
 	// Origin
-	AB_Transaction_SetLocalName(AbTransaction, localName);
-	AB_Transaction_SetLocalIban(AbTransaction, localIban);
-	AB_Transaction_SetLocalBic(AbTransaction, localBic);
+	//AB_Transaction_SetLocalAccount(abTransaction, a);
 	
 	// Purpose
 	GWEN_STRINGLIST *purposeList = GWEN_StringList_fromString(purpose, delim, 0);
-	AB_Transaction_SetPurpose(AbTransaction, purposeList);
+	AB_Transaction_SetPurpose(abTransaction, purposeList);
 	GWEN_StringList_free(purposeList);
 
 	// Reference
-	//AB_Transaction_SetEndToEndReference(AbTransaction, xxx);
+	//AB_Transaction_SetEndToEndReference(abTransaction, xxx);
 	// Other fields
-	// AB_Transaction_SetTextKey(AbTransaction, xxx);
-	AB_Transaction_SetValue(AbTransaction, AB_Value_fromDouble(value));
+	// AB_Transaction_SetTextKey(abTransaction, xxx);
+	AB_Transaction_SetValue(abTransaction, AB_Value_fromDouble(value));
 	
 	// Enque job.
-	AB_Job_SetTransaction(abJob, AbTransaction);
+	AB_Job_SetTransaction(abJob, abTransaction);
+	AB_Transaction_free(abTransaction);
 	jl = AB_Job_List2_new();
 	AB_Job_List2_PushBack(jl, abJob);
 	AB_IMEXPORTER_CONTEXT *ctx = AB_ImExporterContext_new();
 	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
 	if (rv) {
 		PyErr_SetString(ExecutionFailed, "Could not execute SEPA transfer job.");
+		AB_Job_free(abJob);
+		AB_ImExporterContext_free(ctx);
 		return NULL;
 	}
-	job_status = AB_Job_GetStatus(abJob);
-	if (job_status != AB_Job_StatusFinished && job_status != AB_Job_StatusPending)
-    {
-        PyErr_SetString(ExecutionFailed, "Error on executing SEPA transfer job.");
-        fprintf(stderr, "[%-10s]: %-50s\n", AB_Job_Status2Char(job_status) , AB_Job_GetResultText(abJob));
-        AB_Job_free(abJob);
-		AB_Job_List2_free(jl);
-		AB_ImExporterContext_free(ctx);
-		AB_free(self);
-        Py_RETURN_FALSE;
-	}
-	AB_Job_free(abJob);
+	//AB_Job_free(abJob);
 
 	// Free jobs.
-	AB_Job_List2_free(jl);
+	AB_Job_List2_FreeAll(jl);
 	AB_ImExporterContext_free(ctx);
 	AB_free(self);
 
-	Py_RETURN_TRUE;
+	// Exit aqbanking.
+	rv = AB_free(self);
+	/*if (rv > 0)
+	{
+		return NULL;
+	}*/
 
+	Py_INCREF(Py_None);
+	result = Py_None;
+	return result;
 }
 #endif
 
@@ -1308,10 +1336,8 @@ static PyMethodDef aqbanking_Account_methods[] = {
 #endif	
 	{"set_callbackLog", (PyCFunction)aqbanking_Account_set_callbackLog, METH_VARARGS, "Adds a callback for the log output."},
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
-	{"set_callbackPasswordStatus", (PyCFunction)aqbanking_Account_set_callbackPasswordStatus, METH_VARARGS, "Adds a callback to inform about password status."},
-#ifdef FENQUEJOB
-	{"set_callbackGui", (PyCFunction)aqbanking_Account_set_callbackGui, METH_VARARGS, "Add the GUI callbacks (OpenDialog, CloseDialog, ExecDialog, RunDialog, Print)."},
-#endif
+	{"set_callbackPasswordStatus", (PyCFunction)aqbanking_Account_set_callbackPasswordStatus, METH_VARARGS, "Adds a callback to get feedback about pin status."},
+	{"set_callbackCheckCert", (PyCFunction)aqbanking_Account_set_callbackCheckCert, METH_VARARGS, "Adds a callback to check the certificate."},
 	{NULL}  /* Sentinel */
 };
 
@@ -1362,7 +1388,7 @@ static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 	AB_ACCOUNT_LIST2 *accs;
 	// List of accounts => to return.
 	PyObject *accountList;
-	aqbanking_Account *account;
+	aqbanking_Account *account = NULL;
 	accountList = PyList_New(0);
 
 	// Initialize aqbanking.
