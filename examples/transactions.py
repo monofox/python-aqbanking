@@ -45,7 +45,19 @@ now = datetime.datetime.now()
 dateFrom = (now - datetime.timedelta(days=30)).strftime('%Y%m%d')
 dateTo = now.strftime('%Y%m%d')
 ret = acc.transactions(dateFrom, dateTo)
-import pprint
-pprint.pprint(ret)
-if ret:
-    print(ret[0].value, ret[0].currency)
+pos = 1
+for trans in ret:
+    print(
+        '[{pos:>4d}] Transaction {localIban} ({localName}) <> {remoteIban} ({remoteName}) about {value:.2f} {curr:s} for {purpose} on {dt}!'.format(
+            pos=pos,
+            value=trans.value,
+            curr=trans.currency,
+            remoteIban=trans.remoteIban,
+            remoteName='n.A.' if trans.remoteName is None else trans.remoteName,
+            localIban=trans.localIban,
+            localName='n.A.' if trans.localName is None else trans.localName,
+            purpose=trans.purpose,
+            dt=trans.date
+        )
+    )
+    pos += 1

@@ -259,4 +259,3 @@ int PyAqHandler::checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32
 		return cert_valid? 0 : GWEN_ERROR_SSL_SECURITY;
 	}
 }
-

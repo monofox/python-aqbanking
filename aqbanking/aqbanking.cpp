@@ -933,7 +933,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				const GWEN_TIME *tdtime;
 				const char *purpose;
 				char* purposeBuffer = NULL;
-				const char *remoteName;
+				char* remoteNameBuffer = NULL;
 				aqbanking_Transaction *trans = (aqbanking_Transaction*) PyObject_CallObject((PyObject *) &aqbanking_TransactionType, NULL);
 
 				sl = AB_Transaction_GetPurpose(t);
@@ -1052,17 +1052,47 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				} else {
 					trans->remoteBic = PyUnicode_FromString(AB_Transaction_GetRemoteBic(t));
 				}
+				// Retrieve remote name of transaction
 				if (AB_Transaction_GetRemoteName(t) == NULL) {
 					trans->remoteName = Py_None;
 					Py_INCREF(Py_None);
 				} else {
 					sl = AB_Transaction_GetRemoteName(t);
-					remoteName = GWEN_StringList_FirstString(sl);
-					if (remoteName == NULL) {
+					unsigned int countRemoteName = GWEN_StringList_Count(sl);
+					if (!countRemoteName) {
 						trans->remoteName = Py_None;
+						Py_INCREF(Py_None);
 					} else {
-						trans->remoteName = PyUnicode_FromString(remoteName);
+						unsigned int lengthRN = 0;
+						for (unsigned int i = 0; i < countRemoteName; i++) {
+							lengthRN += strlen(GWEN_StringList_StringAt(sl, i));
+						}
+						if (!lengthRN) {
+							trans->remoteName = Py_None;
+							Py_INCREF(Py_None);
+						} else {
+							remoteNameBuffer = (char*)malloc(lengthRN + 1);
+							if (!remoteNameBuffer) {
+								trans->remoteName = Py_None;
+								Py_INCREF(Py_None);
+							} else {
+								char* remoteNameHlp = remoteNameBuffer;
+								for (unsigned int i = 0; i < countRemoteName; i++) {
+									unsigned int stringLength = strlen(GWEN_StringList_StringAt(sl, i));
+									memcpy(remoteNameHlp, GWEN_StringList_StringAt(sl, i), stringLength);
+									remoteNameHlp += stringLength;
+								}
+								*remoteNameHlp = '\0';
+								trans->remoteName = PyUnicode_FromString(remoteNameBuffer);
+							}
+						}
 					}
+				}
+
+				// After filling up remote name, cleanup.
+				if (remoteNameBuffer) {
+					free(remoteNameBuffer);
+					remoteNameBuffer = NULL;
 				}
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
@@ -1185,7 +1215,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
 	account_no = PyBytes_AS_STRING(s);
 #endif
-	
+
 	const char *remoteName=NULL, 
 	*remoteIban=NULL,
 	*remoteBic=NULL,
@@ -1292,6 +1322,7 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	// Free jobs.
 	AB_Job_List2_FreeAll(jl);
 	AB_ImExporterContext_free(ctx);
+	AB_free(self);
 
 	// Exit aqbanking.
 	rv = AB_free(self);
