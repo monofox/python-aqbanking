@@ -1195,9 +1195,9 @@ static PyObject *aqbanking_Account_enqueue_job(aqbanking_Account* self, PyObject
 	double value = 0.00;
 	const char *delim = "\n";
 
-	static char *kwlist[] = {"localName", "localIban", "localBic", "remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
+	static char *kwlist[] = {"remoteName", "remoteIban", "remoteBic", "purpose", "endToEndReference", "textKey", "value", NULL};
 	if (! PyArg_ParseTupleAndKeywords(
-		args, kwds, "|sssssssssd", kwlist, &localName, &localIban, &localBic, &remoteName, &remoteIban, &remoteBic,
+		args, kwds, "|ssssssd", kwlist, &remoteName, &remoteIban, &remoteBic,
 		&purpose, &endToEndReference, &textKey, &value))
 	{
 		return NULL;

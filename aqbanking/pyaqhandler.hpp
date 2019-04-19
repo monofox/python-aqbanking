@@ -30,7 +30,6 @@ protected:
 	virtual int getPassword(uint32_t flags, const char *token, const char *title, const char *text, char *buffer, int minLen, int maxLen, uint32_t guiid);
 	virtual int setPasswordStatus(const char *token, const char *pin, GWEN_GUI_PASSWORD_STATUS status, uint32_t guiid);
 	virtual int checkCert(const GWEN_SSLCERTDESCR *cd, GWEN_SYNCIO *sio, uint32_t guiid);
-	virtual int setPasswordStatus(const char *token, const char *pin, GWEN_GUI_PASSWORD_STATUS status, uint32_t guiid);
 	virtual int setupDialog(GWEN_WIDGET *w);
 	virtual int openDialog(GWEN_DIALOG *dlg, uint32_t guiid);
 	virtual int closeDialog(GWEN_DIALOG *dlg);
