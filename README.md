@@ -29,6 +29,8 @@ Install
 To install this library, just execute (append --user if it should not be installed systemwide):
 `python setup.py install`
 
+Alternative, you can install the library via PyPi: `pip install python-aqbanking`
+
 Please remember, that this library only works with Python 3.
 
 Usage
