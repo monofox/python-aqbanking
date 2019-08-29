@@ -1,9 +1,12 @@
-from setuptools import setup, Extension
-
-# for some more beautiful output:
 import os
+import sys
+import pkgconfig
+from setuptools import setup, Extension
+from distutils.version import StrictVersion
 #os.environ["CC"] = "g++-4.9.2"
 #os.environ["CXX"] = "g++-4.9.2"
+
+PACKAGE_VERSION = '0.0.8'
 
 # retrieve the README
 def read(fname):
@@ -12,21 +15,39 @@ def read(fname):
 	f.close()
 	return cnt
 
+libraries = ['gwenhywfar', 'aqbanking']
+depCompilationArgs = ['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB', '-DPACKAGE_VERSION="' + PACKAGE_VERSION + '"']
+# check for aqbanking dependency
+if not pkgconfig.exists('aqbanking'):
+	sys.stderr.write('Need aqbanking development package installed for compilation.' + os.linesep)
+	sys.exit(1)
+else:
+	for library in libraries:
+		depCompilationArgs += pkgconfig.cflags(library).split(' ')
+		depCompilationArgs += pkgconfig.libs(library).split(' ')
+
+	# furthermore remember the c++ gui!
+	if StrictVersion(pkgconfig.modversion('aqbanking')) >= StrictVersion('5.8.1'):
+		depCompilationArgs.append('-DSUPPORT_APPREGISTRATION')
+
+	depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
+
 module1 = Extension('aqbanking',
-	libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
-	include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5', '/usr/local/include/gwenhywfar4', '/usr/local/include/aqbanking5'],
+	#libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
+	libraries = libraries + ['gwengui-cpp',],
+	#include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5', '/usr/local/include/gwenhywfar4', '/usr/local/include/aqbanking5'],
 	# for compiling debug with python debug:
 	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# for compiling debug without python debug
 	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# RELEASE parameter for compilation:
-	extra_compile_args=['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB'],
+	extra_compile_args=depCompilationArgs,
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
 )
 
 setup (
 	name = 'python-aqbanking',
-	version = '0.0.7',
+	version = PACKAGE_VERSION,
 	description = 'This is a python wrapper for AqBanking',
 	long_description = read('README.md'),
 	license = 'GPLv3+',
