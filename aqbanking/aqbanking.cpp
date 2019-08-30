@@ -104,13 +104,13 @@ int AB_create(aqbanking_Account *acct = NULL) {
 		#ifdef SUPPORT_APPREGISTRATION
 		if (fintsRegistrationKey != NULL) {
 			#ifdef DEBUGSTDERR
-			fprintf(stderr, "FinTS registration key set, fall back to: %-30s [%-10s]\n", fintsRegistrationKey, PACKAGE_VERSION);
+			fprintf(stderr, "FinTS registration key set: %s [%s]\n", fintsRegistrationKey, PACKAGE_VERSION);
 			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsRegistrationKey", fintsRegistrationKey);
 			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		} else {
 			#ifdef DEBUGSTDERR
-			fprintf(stderr, "FinTS registration key not set: %-30s [%-10s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
+			fprintf(stderr, "FinTS registration key not set, fall back to: %s [%s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
 			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
 			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsApplicationVersionString", PACKAGE_VERSION);
@@ -125,13 +125,13 @@ int AB_create(aqbanking_Account *acct = NULL) {
 		#ifdef SUPPORT_APPREGISTRATION
 		if (fintsRegistrationKey != NULL) {
 			#ifdef DEBUGSTDERR
-			fprintf(stderr, "FinTS registration key set, fall back to: %-30s [%-10s]\n", fintsRegistrationKey, PACKAGE_VERSION);
+			fprintf(stderr, "FinTS registration key set: %s [%s]\n", fintsRegistrationKey, PACKAGE_VERSION);
 			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKey);
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		} else {
 			#ifdef DEBUGSTDERR
-			fprintf(stderr, "FinTS registration key not set: %-30s [%-10s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
+			fprintf(stderr, "FinTS registration key not set, fall back to: %s [%s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
 			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
