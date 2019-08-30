@@ -35,6 +35,9 @@ def password_cb(flags, token, title, text, minLen, maxLen):
         pin = getpass.getpass('%s: ' % (plainText,))
         return pin
 
+# in order to consider the new rules in terms of FinTS registration code, you may need to set the
+# registration code accordingly:
+# aqbanking.setRegistrationKey('some characters')
 acc = aqbanking.Account(no='100254687', bank_code='35468754')
 acc.set_callbackLog(callback)
 acc.set_callbackPassword(password_cb)

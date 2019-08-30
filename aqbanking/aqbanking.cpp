@@ -97,24 +97,42 @@ int AB_create(aqbanking_Account *acct = NULL) {
 
 	// Initialisierungen AB
 	if (acct == NULL) {
+		#ifdef DEBUGSTDERR
+		fprintf(stderr, "Account not set, create AqBanking connection...\n");
+		#endif
 		ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
 		#ifdef SUPPORT_APPREGISTRATION
 		if (fintsRegistrationKey != NULL) {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key set, fall back to: %-30s [%-10s]\n", fintsRegistrationKey, PACKAGE_VERSION);
+			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKey);
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		} else {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key not set: %-30s [%-10s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
+			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		}
 		#endif
 		rv = AB_Banking_Init(ab);
 	} else {
+		#ifdef DEBUGSTDERR
+		fprintf(stderr, "Account set, create AqBanking connection...\n");
+		#endif
 		acct->ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
 		#ifdef SUPPORT_APPREGISTRATION
 		if (fintsRegistrationKey != NULL) {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key set, fall back to: %-30s [%-10s]\n", fintsRegistrationKey, PACKAGE_VERSION);
+			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKey);
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		} else {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key not set: %-30s [%-10s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
+			#endif
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
 			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		}
@@ -992,7 +1010,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					}
 				}
 
-#ifdef DEBUGSTDERR
+				#ifdef DEBUGSTDERR
 				fprintf(stderr, "[%-10d]: [%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
 					AB_Transaction_GetUniqueId(t),
 					AB_Transaction_GetRemoteIban(t),
@@ -1003,7 +1021,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					AB_Value_GetValueAsDouble(v),
 					AB_Value_GetCurrency(v)
 					);
-#endif
+				#endif
 
 				tdtime = AB_Transaction_GetDate(t);
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
@@ -1522,6 +1540,14 @@ static PyObject *aqbanking_setRegistrationKey(PyObject *self, PyObject *args)
 {
 	int res;
 	int rv;
+
+	#ifdef DEBUGSTDERR
+	if (fintsRegistrationKey == NULL) {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey not set!\n");
+	} else {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey set: %s\n", fintsRegistrationKey);
+	}
+	#endif
 	// List of accounts => to return.
 	const char *registrationKey;
 
@@ -1529,6 +1555,16 @@ static PyObject *aqbanking_setRegistrationKey(PyObject *self, PyObject *args)
 		return NULL;
 
 	fintsRegistrationKey = registrationKey;
+	#ifdef DEBUGSTDERR
+	if (fintsRegistrationKey == NULL) {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey not set!\n");
+	} else {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey set: %s\n", fintsRegistrationKey);
+	}
+	#endif
+
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 #endif
 

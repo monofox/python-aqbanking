@@ -3,8 +3,6 @@ import sys
 import pkgconfig
 from setuptools import setup, Extension
 from distutils.version import StrictVersion
-#os.environ["CC"] = "g++-4.9.2"
-#os.environ["CXX"] = "g++-4.9.2"
 
 PACKAGE_VERSION = '0.0.8'
 
@@ -16,7 +14,7 @@ def read(fname):
 	return cnt
 
 libraries = ['gwenhywfar', 'aqbanking']
-depCompilationArgs = ['-Wunused-variable', '-Wunused-function']
+depCompilationArgs = ['-Wunused-variable', '-Wunused-function', '-DPACKAGE_VERSION="' + PACKAGE_VERSION + '"']
 depLibraryDirs = []
 # check for aqbanking dependency
 if not pkgconfig.exists('aqbanking'):
@@ -33,19 +31,17 @@ else:
 	# furthermore remember the c++ gui!
 	if StrictVersion(pkgconfig.modversion('aqbanking').replace('beta', '').replace('alpha', '')) >= StrictVersion('5.8.1'):
 		depCompilationArgs.append('-DSUPPORT_APPREGISTRATION')
+		depCompilationArgs += ['-DFINTS_REGISTRATION_KEY="8DEDB89E7B0F7DAE207CB948C"']
+		sys.stderr.write('FinTS App registration enabled' + os.linesep)
+	else:
+		sys.stderr.write('FinTS App registration disabled' + os.linesep)
 
 	depCompilationArgs += ['-DFENQUEJOB']
-	#depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
+	if '--debug' in sys.argv:
+		depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
 
 module1 = Extension('aqbanking',
-	#libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
 	libraries = libraries + ['gwengui-cpp',],
-	#include_dirs = ['/usr/include/gwenhywfar4', '/usr/include/aqbanking5', '/usr/local/include/gwenhywfar4', '/usr/local/include/aqbanking5'],
-	# for compiling debug with python debug:
-	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-DPy_DEBUG', '-Wunused-function', '-DDEBUG', '-DDEBUGSTDERR', '-DFENQUEJOB'],
-	# for compiling debug without python debug
-	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
-	# RELEASE parameter for compilation:
 	extra_compile_args=depCompilationArgs,
 	library_dirs=depLibraryDirs,
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
