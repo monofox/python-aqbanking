@@ -51,3 +51,7 @@ if ret is not None:
         print(ret[0], ' ', ret[1])
     except TypeError:
         pass
+
+# cleanup and deallocate all callbacks for clean shutdown.
+acc.cleanup()
+del(acc)

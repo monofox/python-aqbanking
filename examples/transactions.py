@@ -63,3 +63,7 @@ for trans in ret:
         )
     )
     pos += 1
+
+# cleanup and deallocate all callbacks for clean shutdown.
+acc.cleanup()
+del(acc)

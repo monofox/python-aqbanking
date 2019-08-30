@@ -487,6 +487,31 @@ static PyTypeObject aqbanking_TransactionType = {
 /*
  * HERE THE ACCOUNT STARTS!
  */
+static int aqbanking_Account_clear(aqbanking_Account* self)
+{
+	if (self->aqh != NULL) 
+	{
+		// clear the callbacks
+		if (self->aqh->callbackLog != NULL) {
+			Py_XDECREF(self->aqh->callbackLog);
+			self->aqh->callbackLog = NULL;
+		}
+		if (self->aqh->callbackPassword != NULL) {
+			Py_XDECREF(self->aqh->callbackPassword);
+			self->aqh->callbackPassword = NULL;
+		}
+		if (self->aqh->callbackCheckCert != NULL) {
+			Py_XDECREF(self->aqh->callbackCheckCert);
+			self->aqh->callbackCheckCert = NULL;
+		}
+		if (self->aqh->callbackPasswordStatus != NULL) {
+			Py_XDECREF(self->aqh->callbackPasswordStatus);
+			self->aqh->callbackPasswordStatus = NULL;
+		}
+	}
+    return 0;
+}
+
 static void aqbanking_Account_dealloc(aqbanking_Account* self)
 {
 	Py_XDECREF(self->no);
@@ -494,6 +519,8 @@ static void aqbanking_Account_dealloc(aqbanking_Account* self)
 	Py_XDECREF(self->description);
 	Py_XDECREF(self->bank_code);
 	Py_XDECREF(self->bank_name);
+	aqbanking_Account_clear(self);
+	self->aqh = NULL;
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -599,6 +626,13 @@ static PyObject *aqbanking_Account_name(aqbanking_Account* self)
 	}
 
 	return PyUnicode_FromFormat("%S: %S", self->no, self->name);
+}
+
+static PyObject *aqbanking_Account_cleanup(aqbanking_Account* self, PyObject *args)
+{
+	aqbanking_Account_clear(self);
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 
 static PyObject *aqbanking_Account_set_callbackLog(aqbanking_Account* self, PyObject *args)
@@ -1401,6 +1435,7 @@ static PyMethodDef aqbanking_Account_methods[] = {
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
 	{"set_callbackPasswordStatus", (PyCFunction)aqbanking_Account_set_callbackPasswordStatus, METH_VARARGS, "Adds a callback to get feedback about pin status."},
 	{"set_callbackCheckCert", (PyCFunction)aqbanking_Account_set_callbackCheckCert, METH_VARARGS, "Adds a callback to check the certificate."},
+	{"cleanup", (PyCFunction)aqbanking_Account_cleanup, METH_VARARGS, "Cleanup and remove all callbacks."},
 	{NULL}  /* Sentinel */
 };
 
@@ -1427,7 +1462,7 @@ static PyTypeObject aqbanking_AccountType = {
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
 	"Account", /* tp_doc */
 	0, /* tp_traverse */
-	0, /* tp_clear */
+	(inquiry)aqbanking_Account_clear, /* tp_clear */
 	0, /* tp_richcompare */
 	0, /* tp_weaklistoffset */
 	0, /* tp_iter */
