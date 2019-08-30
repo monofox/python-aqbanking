@@ -11,11 +11,13 @@
 #include "unicodeobject.h"
 #include "structmember.h"
 #include <aqbanking/banking.h>
-#include <aqbanking/jobgetbalance.h>
-#include <aqbanking/jobgettransactions.h>
-#include <aqbanking/jobsingletransfer.h>
-#include <aqbanking/jobsepatransfer.h>
-#include <aqbanking/jobsepatransfer.h>
+#include <aqbanking/banking_online.h>
+#include <aqbanking/banking_transaction.h>
+//#include <aqbanking/jobgetbalance.h>
+//#include <aqbanking/jobgettransactions.h>
+//#include <aqbanking/jobsingletransfer.h>
+//#include <aqbanking/jobsepatransfer.h>
+//#include <aqbanking/jobsepatransfer.h>
 #include "pyaqhandler.hpp"
 
 /**
@@ -100,11 +102,11 @@ int AB_create(aqbanking_Account *acct = NULL) {
 		ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
 		#ifdef SUPPORT_APPREGISTRATION
 		if (fintsRegistrationKey != NULL) {
-			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKey);
-			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsRegistrationKey", fintsRegistrationKey);
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		} else {
-			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
-			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsApplicationVersionString", PACKAGE_VERSION);
 		}
 		#endif
 		rv = AB_Banking_Init(ab);
@@ -125,11 +127,13 @@ int AB_create(aqbanking_Account *acct = NULL) {
 		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not initialize (%d).", rv));
 		return 2;
 	}
+	#ifndef AQBANKING6
 	if (acct == NULL) {
 		rv = AB_Banking_OnlineInit(ab);
 	} else {
 		rv = AB_Banking_OnlineInit(acct->ab);
 	}
+	#endif
 	if (rv) {
 		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online initialize (%d).", rv));
 		return 2;
@@ -147,6 +151,7 @@ int AB_create(aqbanking_Account *acct = NULL) {
 int AB_free(aqbanking_Account *acct = NULL) {
 	int rv = 0;
 
+	#ifndef AQBANKING6
 	if (acct == NULL) {
 		rv = AB_Banking_OnlineFini(ab);
 	} else {
@@ -157,6 +162,7 @@ int AB_free(aqbanking_Account *acct = NULL) {
 		PyErr_SetObject(AqBankingInitializeError, PyUnicode_FromFormat("Could not do online deinit. (%d).", rv));
 		return 3;
 	}
+	#endif
 
 	if (acct == NULL) {
 		rv = AB_Banking_Fini(ab);
@@ -671,8 +677,8 @@ static PyObject *aqbanking_Account_set_callbackCheckCert(aqbanking_Account* self
 
 static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
-	const AB_ACCOUNT_STATUS * status;
-	const AB_BALANCE * bal;
+	AB_ACCOUNT_SPEC_LIST *accs=NULL;
+	const AB_ACCOUNT_SPEC *as;
 	const AB_VALUE *v = 0;
 	int rv;
 	double balance;
@@ -701,10 +707,6 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
 	account_no = PyBytes_AS_STRING(s);
 #endif
-	AB_ACCOUNT *a;
-	AB_JOB *job = 0;
-	AB_JOB_LIST2 *jl = 0;
-	AB_IMEXPORTER_CONTEXT *ctx = 0;
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
 
 	// Initialize aqbanking.
@@ -714,23 +716,42 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 		return NULL;
 	}
 
-	// Let us find the account!
-	a = AB_Banking_GetAccountByCodeAndNumber(self->ab, bank_code, account_no);
-	if (!a)
+	rv = AB_Banking_GetAccountSpecList(self->ab, &accs);
+	if (rv > 0)
 	{
+		return NULL;
+	}
+
+	/* find a matching account within the given list */
+	as = AB_AccountSpec_List_FindFirst(accs,
+									"*",                     /* backendName */
+									"*",                     /* country */
+									bank_code,               /* bankId bank */
+									account_no,              /* accountNumber */
+									"*",                     /* subAccountId */
+									"*",                     /* iban */
+									"*",                     /* currency */
+									AB_AccountType_Unknown); /* ty */
+	if (as==NULL) {
 		PyErr_SetString(AccountNotFound, "Could not find the given account! ");
 		return NULL;
 	}
 
 	// Create job and execute it.
+	AB_TRANSACTION_LIST2 *cmdList;
+	AB_TRANSACTION *t;
+	AB_IMEXPORTER_CONTEXT *ctx;
+	cmdList = AB_Transaction_List2_new();
+	t = AB_Transaction_new();
+	AB_Transaction_SetCommand(t, AB_Transaction_CommandGetBalance);
+	AB_Transaction_SetUniqueAccountId(t, AB_AccountSpec_GetUniqueId(as));
+	AB_Transaction_List2_PushBack(cmdList, t);
 	ctx = AB_ImExporterContext_new();
-	jl = AB_Job_List2_new();
-	job = AB_JobGetBalance_new(a);
-	AB_Job_List2_PushBack(jl, job);
-	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
+	rv = AB_Banking_SendCommands(self->ab, cmdList, ctx);
 	if (rv > 0)
 	{
 		PyErr_SetString(ExecutionFailed, "Could not get the balance!");
+		AB_ImExporterContext_free(ctx);
 		return NULL;
 	}
 
@@ -738,16 +759,15 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	ai = AB_ImExporterContext_GetFirstAccountInfo(ctx);
 	if (ai == NULL) {
 		PyErr_SetString(ExecutionFailed, "Could not retrieve balance.");
-		return NULL;		
+		AB_ImExporterContext_free(ctx);
+		return NULL;
 	}
-	status = AB_ImExporterAccountInfo_GetFirstAccountStatus(ai);
-	bal = AB_AccountStatus_GetBookedBalance(status);
-	v = AB_Balance_GetValue(bal);
+	t = AB_ImExporterAccountInfo_GetFirstTransaction(ai, 0, 0);
+	v = AB_Transaction_GetValue(t);
 	balance = AB_Value_GetValueAsDouble(v);
 	currency = PyUnicode_FromString(AB_Value_GetCurrency(v));
 
 	// Free jobs.
-	AB_Job_List2_free(jl);
 	AB_ImExporterContext_free(ctx);
 
 	// Exit aqbanking.
@@ -761,6 +781,7 @@ static PyObject *aqbanking_Account_balance(aqbanking_Account* self, PyObject *ar
 	return Py_BuildValue("(d,O)", balance, currency);
 }
 
+#ifndef AQBANKING6
 static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObject *args, PyObject *keywds)
 {
 	int rv;
@@ -845,6 +866,7 @@ static PyObject *aqbanking_Account_available_jobs(aqbanking_Account* self, PyObj
 
 	return featList;
 }
+#endif
 
 static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObject *args, PyObject *kwds)
 {
@@ -874,7 +896,6 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	s = _PyUnicode_AsDefaultEncodedString(self->no, NULL);
 	account_no = PyBytes_AS_STRING(s);
 #endif
-	GWEN_TIME *gwTime;
 	const char *dateFrom=NULL, *dateTo=NULL;
 	static char *kwlist[] = {"dateFrom", "dateTo", NULL};
 	if (! PyArg_ParseTupleAndKeywords(args, kwds, "|ss", kwlist, &dateFrom, &dateTo))
@@ -882,10 +903,8 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 		return NULL;
 	}
 
-	AB_ACCOUNT *a;
-	AB_JOB *job = 0;
-	AB_JOB_LIST2 *jl = 0;
-	AB_IMEXPORTER_CONTEXT *ctx = 0;
+	AB_ACCOUNT_SPEC_LIST *accs=NULL;
+	AB_ACCOUNT_SPEC *as;
 	AB_IMEXPORTER_ACCOUNTINFO *ai;
 	/*aqbanking_Transaction *trans = NULL;*/
 	PyObject *transList = PyList_New(0);
@@ -898,9 +917,17 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 		return NULL;
 	}
 
-	// Let us find the account!
-	a = AB_Banking_GetAccountByCodeAndNumber(self->ab, bank_code, account_no);
-	if (!a)
+	/* find a matching account within the given list */
+	as = AB_AccountSpec_List_FindFirst(accs,
+									"*",                     /* backendName */
+									"*",                     /* country */
+									bank_code,               /* bankId bank */
+									account_no,              /* accountNumber */
+									"*",                     /* subAccountId */
+									"*",                     /* iban */
+									"*",                     /* currency */
+									AB_AccountType_Unknown); /* ty */
+	if (as==NULL)
 	{
 		PyErr_SetString(AccountNotFound, "Could not find the given account! ");
 		Py_DECREF(transList);
@@ -908,7 +935,13 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 	}
 
 	// Create job and execute it.
-	job = AB_JobGetTransactions_new(a);
+	AB_TRANSACTION_LIST2 *cmdList;
+	AB_TRANSACTION *t;
+	AB_IMEXPORTER_CONTEXT *ctx;
+	cmdList = AB_Transaction_List2_new();
+	t = AB_Transaction_new();
+	// AB_Transaction_SetFirstDate vs. AB_Transaction_SetLastDate
+	#ifndef AQBANKING6
 	if (dateFrom != NULL)
 	{
 		gwTime = GWEN_Time_fromString(dateFrom, "YYYYMMDD");
@@ -919,6 +952,22 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 		gwTime = GWEN_Time_fromString(dateTo, "YYYYMMDD");
 		AB_JobGetTransactions_SetToTime(job, gwTime);
 	}
+	#else
+	if (dateFrom != NULL)
+	{
+		const GWEN_DATE *gwTime = GWEN_Date_fromStringWithTemplate(dateFrom, "YYYYMMDD");
+		AB_Transaction_SetFirstDate(t, gwTime);
+	}
+	if (dateTo != NULL)
+	{
+		const GWEN_DATE *gwTime = GWEN_Date_fromStringWithTemplate(dateTo, "YYYYMMDD");
+		AB_Transaction_SetLastDate(t, gwTime);
+	}
+	#endif
+	AB_Transaction_SetCommand(t, AB_Transaction_CommandGetTransactions);
+	AB_Transaction_SetUniqueAccountId(t, AB_AccountSpec_GetUniqueId(as));
+	AB_Transaction_List2_PushBack(cmdList, t);
+	#ifndef AQBANKING6
 	// Check for availability
 	rv = AB_Job_CheckAvailability(job);
 	if (rv) {
@@ -926,73 +975,46 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 		Py_DECREF(transList);
 		return NULL;
 	}
+	#endif
 
-	jl = AB_Job_List2_new();
-	AB_Job_List2_PushBack(jl, job);
 	ctx = AB_ImExporterContext_new();
-	rv = AB_Banking_ExecuteJobs(self->ab, jl, ctx);
-
-	if (rv)
+	rv = AB_Banking_SendCommands(self->ab, cmdList, ctx);
+	if (rv > 0)
 	{
 		PyErr_SetString(ExecutionFailed, "Could not retrieve transactions!");
 		Py_DECREF(transList);
+		AB_ImExporterContext_free(ctx);
 		return NULL;
 	}
 
 	// With success. No process the result.
 	ai = AB_ImExporterContext_GetFirstAccountInfo (ctx);
+	if (ai == NULL) {
+		PyErr_SetString(ExecutionFailed, "Could not retrieve transactions.");
+		AB_ImExporterContext_free(ctx);
+		return NULL;		
+	}
 	while(ai)
 	{
 		const AB_TRANSACTION *t;
 		
-		t = AB_ImExporterAccountInfo_GetFirstTransaction(ai);
+		t = AB_ImExporterAccountInfo_GetFirstTransaction(ai, 0, 0);
 		while(t) {
 			const AB_VALUE *v;
 			AB_TRANSACTION_STATUS state;
+			v = AB_Transaction_GetValue(t);
 
-			v=AB_Transaction_GetValue(t);
 			if (v) {
-				const GWEN_STRINGLIST *sl;
-				const GWEN_TIME *tdtime;
+				const GWEN_DATE *tdtime;
 				const char *purpose;
-				char* purposeBuffer = NULL;
-				char* remoteNameBuffer = NULL;
 				aqbanking_Transaction *trans = (aqbanking_Transaction*) PyObject_CallObject((PyObject *) &aqbanking_TransactionType, NULL);
 
-				sl = AB_Transaction_GetPurpose(t);
-				if (!sl) {
+				purpose = AB_Transaction_GetPurpose(t);
+				if (purpose == NULL) {
 					purpose = "";
-				} else {
-					unsigned int count = GWEN_StringList_Count(sl);
-					if (!count) {
-						purpose = "";
-					} else {
-						unsigned int length = 0;
-						for (unsigned int i = 0; i < count; i++) {
-							length += strlen(GWEN_StringList_StringAt(sl, i));
-						}
-
-						if (!length) {
-							purpose = "";
-						} else {
-							purposeBuffer = (char*)malloc(length + 1);
-							if (!purposeBuffer) {
-								purpose = "";
-							} else {
-								char* rover = purposeBuffer;
-								for (unsigned int i = 0; i < count; i++) {
-									unsigned int stringLength = strlen(GWEN_StringList_StringAt(sl, i));
-									memcpy(rover, GWEN_StringList_StringAt(sl, i), stringLength);
-									rover += stringLength;
-								}
-								*rover = '\0';
-								purpose = purposeBuffer;
-							}
-						}
-					}
 				}
 
-#ifdef DEBUGSTDERR
+				#ifdef DEBUGSTDERR
 				fprintf(stderr, "[%-10d]: [%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
 					AB_Transaction_GetUniqueId(t),
 					AB_Transaction_GetRemoteIban(t),
@@ -1003,20 +1025,15 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					AB_Value_GetValueAsDouble(v),
 					AB_Value_GetCurrency(v)
 					);
-#endif
+				#endif
 
 				tdtime = AB_Transaction_GetDate(t);
-				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
+				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Date_toLocalTime(tdtime)));
 				trans->date = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
 				tdtime = AB_Transaction_GetValutaDate(t);
-				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
+				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Date_toLocalTime(tdtime)));
 				trans->valutaDate = PyDate_FromTimestamp(Py_BuildValue("(O)", PyFloat_FromDouble(tmpDateTime)));
 				trans->purpose = PyUnicode_FromString(purpose);
-
-				if (purposeBuffer) {
-					free(purposeBuffer);
-					purposeBuffer = NULL;
-				}
 
 				// Local user
 				if (AB_Transaction_GetLocalAccountNumber(t) == NULL) {
@@ -1080,42 +1097,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					trans->remoteName = Py_None;
 					Py_INCREF(Py_None);
 				} else {
-					sl = AB_Transaction_GetRemoteName(t);
-					unsigned int countRemoteName = GWEN_StringList_Count(sl);
-					if (!countRemoteName) {
-						trans->remoteName = Py_None;
-						Py_INCREF(Py_None);
-					} else {
-						unsigned int lengthRN = 0;
-						for (unsigned int i = 0; i < countRemoteName; i++) {
-							lengthRN += strlen(GWEN_StringList_StringAt(sl, i));
-						}
-						if (!lengthRN) {
-							trans->remoteName = Py_None;
-							Py_INCREF(Py_None);
-						} else {
-							remoteNameBuffer = (char*)malloc(lengthRN + 1);
-							if (!remoteNameBuffer) {
-								trans->remoteName = Py_None;
-								Py_INCREF(Py_None);
-							} else {
-								char* remoteNameHlp = remoteNameBuffer;
-								for (unsigned int i = 0; i < countRemoteName; i++) {
-									unsigned int stringLength = strlen(GWEN_StringList_StringAt(sl, i));
-									memcpy(remoteNameHlp, GWEN_StringList_StringAt(sl, i), stringLength);
-									remoteNameHlp += stringLength;
-								}
-								*remoteNameHlp = '\0';
-								trans->remoteName = PyUnicode_FromString(remoteNameBuffer);
-							}
-						}
-					}
-				}
-
-				// After filling up remote name, cleanup.
-				if (remoteNameBuffer) {
-					free(remoteNameBuffer);
-					remoteNameBuffer = NULL;
+					trans->remoteName = PyUnicode_FromString(AB_Transaction_GetRemoteName(t));
 				}
 
 				trans->value = PyFloat_FromDouble(AB_Value_GetValueAsDouble(v));
@@ -1128,9 +1110,15 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				}
 				trans->transactionCode = PyLong_FromLong(AB_Transaction_GetTransactionCode(t));
 				trans->textKey = PyLong_FromLong(AB_Transaction_GetTextKey(t));
+				#ifndef AQBANKING6
 				trans->textKeyExt = PyLong_FromLong(AB_Transaction_GetTextKeyExt(t));
+				#else
+				trans->textKeyExt = Py_None;
+				Py_INCREF(Py_None);
+				#endif
 				if (AB_Transaction_GetMandateId(t) == NULL) {
 					trans->sepaMandateId = Py_None;
+					Py_INCREF(Py_None);
 				} else {
 					trans->sepaMandateId = PyUnicode_FromString(AB_Transaction_GetMandateId(t));
 				}
@@ -1198,16 +1186,14 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 				PyList_Append(transList, (PyObject *)trans);
 				Py_DECREF(trans);
 			}
-			t = AB_ImExporterAccountInfo_GetNextTransaction(ai);
+			t = AB_Transaction_List_Next(t);
 		} 
-		ai = AB_ImExporterContext_GetNextAccountInfo(ctx);
+		ai = AB_ImExporterAccountInfo_List_Next(ai);
 	}
 
 	// Free jobs.
-	AB_Job_free(job);
-	AB_Job_List2_free(jl);
 	AB_ImExporterContext_free(ctx);
-
+	
 	// Exit aqbanking.
 	rv = AB_free(self);
 	if (rv > 0)
@@ -1375,7 +1361,9 @@ static PyMethodDef aqbanking_Account_methods[] = {
 	},*/
 	{"balance", (PyCFunction)aqbanking_Account_balance, METH_VARARGS | METH_KEYWORDS, "Get the balance of the account."},
 	{"transactions", (PyCFunction)aqbanking_Account_transactions, METH_VARARGS | METH_KEYWORDS, "Get the list of transactions of an account."},
+#ifndef AQBANKING6
 	{"availableJobs", (PyCFunction)aqbanking_Account_available_jobs, METH_VARARGS | METH_KEYWORDS, "Get a list of available jobs."},
+#endif
 #ifdef FENQUEJOB
 	{"enqueJob", (PyCFunction)aqbanking_Account_enqueue_job, METH_VARARGS | METH_KEYWORDS, "Make a transfer."},
 #endif	
@@ -1429,8 +1417,8 @@ static PyTypeObject aqbanking_AccountType = {
 
 static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 {
+	AB_ACCOUNT_SPEC_LIST *accs = NULL;
 	int rv;
-	AB_ACCOUNT_LIST2 *accs;
 	// List of accounts => to return.
 	PyObject *accountList;
 	aqbanking_Account *account = NULL;
@@ -1440,79 +1428,54 @@ static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 	rv = AB_create(NULL);
 	if (rv > 0)
 	{
+		fprintf(stderr, "Error on init (%d: %s)\n", rv, GWEN_Error_SimpleToString(rv));
 		return NULL;
 	}
 
-	/* Get a list of accounts which are known to AqBanking.
-	 * There are some pecularities about the list returned:
-	 * The list itself is owned by the caller (who must call
-	 * AB_Account_List2_free() as we do below), but the elements of that
-	 * list (->the accounts) are still owned by AqBanking.
-	 * Therefore you MUST NOT free any of the accounts within the list returned.
-	 * This also rules out calling AB_Account_List2_freeAll() which not only
-	 * frees the list itself but also frees all its elements.
-	 *
-	 * The rest of this tutorial shows how lists are generally used by
-	 * AqBanking.
-	 */
-	accs = AB_Banking_GetAccounts(ab);
-	if (accs) {
-		AB_ACCOUNT_LIST2_ITERATOR *it;
+	// Get a list of accounts which are known to AqBanking.
+	rv = AB_Banking_GetAccountSpecList(ab, &accs);
+	if (rv<0) {
+		fprintf(stderr, "Unable to get the list of accounts (%d: %s)\n", rv, GWEN_Error_SimpleToString(rv));
+		return NULL;
+	} else {
+		AB_ACCOUNT_SPEC *as;
 
-		/* List2's are traversed using iterators. An iterator is an object
-		 * which points to a single element of a list.
-		 * If the list is empty NULL is returned.
-		 */
-		it=AB_Account_List2_First(accs);
-		if (it) {
-			AB_ACCOUNT *a;
+		/* return the first entry of the account spec list */
+		as = AB_AccountSpec_List_First(accs);
+		while (as) {
+			account = (aqbanking_Account*) PyObject_CallObject((PyObject *) &aqbanking_AccountType, NULL);
+			/* every account is assigned to a backend (sometimes called provider)
+			 * which actually performs online banking tasks. We get a pointer
+			 * to that provider/backend with this call to show its name in our
+			 * example.*/
+			//pro = AB_Account_GetProvider(a);
+			// Populate the object.
+			account->no = PyUnicode_FromString(AB_AccountSpec_GetAccountNumber(as));
+			account->name = PyUnicode_FromString(AB_AccountSpec_GetAccountName(as));
+			account->description = PyUnicode_FromString(AB_AccountSpec_GetBackendName(as));
+			account->bank_code = PyUnicode_FromString(AB_AccountSpec_GetBankCode(as));
+			//account->bank_name = PyUnicode_FromString(AB_BankInfo_GetBankName(pro));
+			PyList_Append(accountList, (PyObject *)account);
+			Py_DECREF(account);
 
-			/* this function returns a pointer to the element of the list to
-			 * which the iterator currently points to */
-			a=AB_Account_List2Iterator_Data(it);
-			while(a) {
-				AB_PROVIDER *pro;
-				account = (aqbanking_Account*) PyObject_CallObject((PyObject *) &aqbanking_AccountType, NULL);
-
-				/* every account is assigned to a backend (sometimes called provider)
-				 * which actually performs online banking tasks. We get a pointer
-				 * to that provider/backend with this call to show its name in our
-				 * example.*/
-				pro = AB_Account_GetProvider(a);
-				// Populate the object.
-				account->no = PyUnicode_FromString(AB_Account_GetAccountNumber(a));
-				account->name = PyUnicode_FromString(AB_Account_GetAccountName(a));
-				account->description = PyUnicode_FromString(AB_Provider_GetName(pro));
-				account->bank_code = PyUnicode_FromString(AB_Account_GetBankCode(a));
-				account->bank_name = PyUnicode_FromString(AB_Account_GetBankName(a));
-				PyList_Append(accountList, (PyObject *)account);
-				Py_DECREF(account);
-
-				/* this function lets the iterator advance to the next element in
-				 * the list, so a following call to AB_Account_List2Iterator_Data()
-				 * would return a pointer to the next element.
-				 * This function also returns a pointer to the next element of the
-				 * list. If there is no next element then NULL is returned. */
-				a = AB_Account_List2Iterator_Next(it);
-			}
-			/* the iterator must be freed after using it */
-			AB_Account_List2Iterator_free(it);
+			/* return the next entry of the account spec list */
+			as=AB_AccountSpec_List_Next(as);
 		}
-		/* as discussed the list itself is only a container which has to be freed
-		 * after use. This explicitly does not free any of the elements in that
-		 * list, and it shouldn't because AqBanking still is the owner of the
-		 * accounts */
-		AB_Account_List2_free(accs);
+		/* free the list to avoid memory leaks */
+		AB_AccountSpec_List_free(accs);
 	}
 
-	// Exit aqbanking.
-	rv = AB_free(NULL);
-	if (rv > 0)
-	{
+	/* deinitialize AqBanking */
+	/*rv = AB_Banking_Fini(ab);
+	if (rv) {
+		fprintf(stderr, "ERROR: Error on deinit (%d)\n", rv);
 		Py_DECREF(account);
 		Py_DECREF(accountList);
 		return NULL;
-	}
+	}*/
+
+	// Exit aqbanking.
+	rv = AB_free(NULL);
 
 	return accountList;
 }
@@ -1520,8 +1483,6 @@ static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 #ifdef SUPPORT_APPREGISTRATION
 static PyObject *aqbanking_setRegistrationKey(PyObject *self, PyObject *args)
 {
-	int res;
-	int rv;
 	// List of accounts => to return.
 	const char *registrationKey;
 
@@ -1529,6 +1490,8 @@ static PyObject *aqbanking_setRegistrationKey(PyObject *self, PyObject *args)
 		return NULL;
 
 	fintsRegistrationKey = registrationKey;
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 #endif
 

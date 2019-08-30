@@ -16,7 +16,7 @@ def read(fname):
 	return cnt
 
 libraries = ['gwenhywfar', 'aqbanking']
-depCompilationArgs = ['-Wunused-variable', '-Wunused-function']
+depCompilationArgs = ['-Wunused-variable', '-Wunused-function', '-DPACKAGE_VERSION="' + PACKAGE_VERSION + '"']
 depLibraryDirs = []
 # check for aqbanking dependency
 if not pkgconfig.exists('aqbanking'):
@@ -34,8 +34,10 @@ else:
 	if StrictVersion(pkgconfig.modversion('aqbanking').replace('beta', '').replace('alpha', '')) >= StrictVersion('5.8.1'):
 		depCompilationArgs.append('-DSUPPORT_APPREGISTRATION')
 
-	depCompilationArgs += ['-DFENQUEJOB']
-	#depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
+	#depCompilationArgs += ['-DFENQUEJOB']
+	depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
+	depCompilationArgs += ['-DAQBANKING6']
+	depCompilationArgs += ['-DFINTS_REGISTRATION_KEY="2348723498724"']
 
 module1 = Extension('aqbanking',
 	#libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
