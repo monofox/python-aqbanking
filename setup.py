@@ -16,7 +16,8 @@ def read(fname):
 	return cnt
 
 libraries = ['gwenhywfar', 'aqbanking']
-depCompilationArgs = ['-Wunused-variable', '-Wunused-function', '-DFENQUEJOB', '-DPACKAGE_VERSION="' + PACKAGE_VERSION + '"']
+depCompilationArgs = ['-Wunused-variable', '-Wunused-function']
+depLibraryDirs = []
 # check for aqbanking dependency
 if not pkgconfig.exists('aqbanking'):
 	sys.stderr.write('Need aqbanking development package installed for compilation.' + os.linesep)
@@ -25,12 +26,16 @@ else:
 	for library in libraries:
 		depCompilationArgs += pkgconfig.cflags(library).split(' ')
 		depCompilationArgs += pkgconfig.libs(library).split(' ')
+		libPath = pkgconfig.variables(library)['libdir']
+		if libPath not in depLibraryDirs:
+			depLibraryDirs.append(libPath)
 
 	# furthermore remember the c++ gui!
-	if StrictVersion(pkgconfig.modversion('aqbanking')) >= StrictVersion('5.8.1'):
+	if StrictVersion(pkgconfig.modversion('aqbanking').replace('beta', '').replace('alpha', '')) >= StrictVersion('5.8.1'):
 		depCompilationArgs.append('-DSUPPORT_APPREGISTRATION')
 
-	depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
+	depCompilationArgs += ['-DFENQUEJOB']
+	#depCompilationArgs += ['-O0', '-g', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR']
 
 module1 = Extension('aqbanking',
 	#libraries = ['gwenhywfar', 'aqbanking', 'gwengui-cpp'],
@@ -42,6 +47,7 @@ module1 = Extension('aqbanking',
 	#extra_compile_args=['-O0', '-g', '-Wunused-variable', '-std=gnu++11', '-Wunused-function', '-DDEBUGSTDERR', '-DFENQUEJOB'],
 	# RELEASE parameter for compilation:
 	extra_compile_args=depCompilationArgs,
+	library_dirs=depLibraryDirs,
 	sources = ['aqbanking/pyaqhandler.cpp', 'aqbanking/aqbanking.cpp']
 )
 
