@@ -15,6 +15,7 @@
 #include <aqbanking/jobgettransactions.h>
 #include <aqbanking/jobsingletransfer.h>
 #include <aqbanking/jobsepatransfer.h>
+#include <aqbanking/jobsepatransfer.h>
 #include "pyaqhandler.hpp"
 
 /**
@@ -30,6 +31,10 @@ static PyObject *JobNotAvailable;
  */
 static PyAqHandler* aqh = NULL;
 static AB_BANKING *ab = NULL;
+#ifdef SUPPORT_APPREGISTRATION
+static const char *fintsRegistrationKey = NULL;
+static const char *fintsRegistrationKeyFB = FINTS_REGISTRATION_KEY;
+#endif
 
 /**
  * This is the structure for the Account class.
@@ -92,10 +97,46 @@ int AB_create(aqbanking_Account *acct = NULL) {
 
 	// Initialisierungen AB
 	if (acct == NULL) {
+		#ifdef DEBUGSTDERR
+		fprintf(stderr, "Account not set, create AqBanking connection...\n");
+		#endif
 		ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
+		#ifdef SUPPORT_APPREGISTRATION
+		if (fintsRegistrationKey != NULL) {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key set: %s [%s]\n", fintsRegistrationKey, PACKAGE_VERSION);
+			#endif
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsRegistrationKey", fintsRegistrationKey);
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsApplicationVersionString", PACKAGE_VERSION);
+		} else {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key not set, fall back to: %s [%s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
+			#endif
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
+			AB_Banking_RuntimeConfig_SetCharValue(ab, "fintsApplicationVersionString", PACKAGE_VERSION);
+		}
+		#endif
 		rv = AB_Banking_Init(ab);
 	} else {
+		#ifdef DEBUGSTDERR
+		fprintf(stderr, "Account set, create AqBanking connection...\n");
+		#endif
 		acct->ab = AB_Banking_new("python-aqbanking", 0, AB_BANKING_EXTENSION_NONE);
+		#ifdef SUPPORT_APPREGISTRATION
+		if (fintsRegistrationKey != NULL) {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key set: %s [%s]\n", fintsRegistrationKey, PACKAGE_VERSION);
+			#endif
+			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKey);
+			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
+		} else {
+			#ifdef DEBUGSTDERR
+			fprintf(stderr, "FinTS registration key not set, fall back to: %s [%s]\n", fintsRegistrationKeyFB, PACKAGE_VERSION);
+			#endif
+			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsRegistrationKey", fintsRegistrationKeyFB);
+			AB_Banking_RuntimeConfig_SetCharValue(acct->ab, "fintsApplicationVersionString", PACKAGE_VERSION);
+		}
+		#endif
 		rv = AB_Banking_Init(acct->ab);
 	}
 	if (rv) {
@@ -446,6 +487,31 @@ static PyTypeObject aqbanking_TransactionType = {
 /*
  * HERE THE ACCOUNT STARTS!
  */
+static int aqbanking_Account_clear(aqbanking_Account* self)
+{
+	if (self->aqh != NULL) 
+	{
+		// clear the callbacks
+		if (self->aqh->callbackLog != NULL) {
+			Py_XDECREF(self->aqh->callbackLog);
+			self->aqh->callbackLog = NULL;
+		}
+		if (self->aqh->callbackPassword != NULL) {
+			Py_XDECREF(self->aqh->callbackPassword);
+			self->aqh->callbackPassword = NULL;
+		}
+		if (self->aqh->callbackCheckCert != NULL) {
+			Py_XDECREF(self->aqh->callbackCheckCert);
+			self->aqh->callbackCheckCert = NULL;
+		}
+		if (self->aqh->callbackPasswordStatus != NULL) {
+			Py_XDECREF(self->aqh->callbackPasswordStatus);
+			self->aqh->callbackPasswordStatus = NULL;
+		}
+	}
+    return 0;
+}
+
 static void aqbanking_Account_dealloc(aqbanking_Account* self)
 {
 	Py_XDECREF(self->no);
@@ -453,6 +519,8 @@ static void aqbanking_Account_dealloc(aqbanking_Account* self)
 	Py_XDECREF(self->description);
 	Py_XDECREF(self->bank_code);
 	Py_XDECREF(self->bank_name);
+	aqbanking_Account_clear(self);
+	self->aqh = NULL;
 	Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -558,6 +626,13 @@ static PyObject *aqbanking_Account_name(aqbanking_Account* self)
 	}
 
 	return PyUnicode_FromFormat("%S: %S", self->no, self->name);
+}
+
+static PyObject *aqbanking_Account_cleanup(aqbanking_Account* self, PyObject *args)
+{
+	aqbanking_Account_clear(self);
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 
 static PyObject *aqbanking_Account_set_callbackLog(aqbanking_Account* self, PyObject *args)
@@ -969,7 +1044,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					}
 				}
 
-#ifdef DEBUGSTDERR
+				#ifdef DEBUGSTDERR
 				fprintf(stderr, "[%-10d]: [%-10s/%-10s][%-10s/%-10s] %-32s (%.2f %s)\n",
 					AB_Transaction_GetUniqueId(t),
 					AB_Transaction_GetRemoteIban(t),
@@ -980,7 +1055,7 @@ static PyObject *aqbanking_Account_transactions(aqbanking_Account* self, PyObjec
 					AB_Value_GetValueAsDouble(v),
 					AB_Value_GetCurrency(v)
 					);
-#endif
+				#endif
 
 				tdtime = AB_Transaction_GetDate(t);
 				tmpDateTime = PyLong_AsDouble(PyLong_FromSize_t(GWEN_Time_Seconds(tdtime)));
@@ -1360,6 +1435,7 @@ static PyMethodDef aqbanking_Account_methods[] = {
 	{"set_callbackPassword", (PyCFunction)aqbanking_Account_set_callbackPassword, METH_VARARGS, "Adds a callback to retrieve the password (pin)."},
 	{"set_callbackPasswordStatus", (PyCFunction)aqbanking_Account_set_callbackPasswordStatus, METH_VARARGS, "Adds a callback to get feedback about pin status."},
 	{"set_callbackCheckCert", (PyCFunction)aqbanking_Account_set_callbackCheckCert, METH_VARARGS, "Adds a callback to check the certificate."},
+	{"cleanup", (PyCFunction)aqbanking_Account_cleanup, METH_VARARGS, "Cleanup and remove all callbacks."},
 	{NULL}  /* Sentinel */
 };
 
@@ -1386,7 +1462,7 @@ static PyTypeObject aqbanking_AccountType = {
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
 	"Account", /* tp_doc */
 	0, /* tp_traverse */
-	0, /* tp_clear */
+	(inquiry)aqbanking_Account_clear, /* tp_clear */
 	0, /* tp_richcompare */
 	0, /* tp_weaklistoffset */
 	0, /* tp_iter */
@@ -1494,6 +1570,39 @@ static PyObject * aqbanking_listacc(PyObject *self, PyObject *args)
 	return accountList;
 }
 
+#ifdef SUPPORT_APPREGISTRATION
+static PyObject *aqbanking_setRegistrationKey(PyObject *self, PyObject *args)
+{
+	int res;
+	int rv;
+
+	#ifdef DEBUGSTDERR
+	if (fintsRegistrationKey == NULL) {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey not set!\n");
+	} else {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey set: %s\n", fintsRegistrationKey);
+	}
+	#endif
+	// List of accounts => to return.
+	const char *registrationKey;
+
+	if (!PyArg_ParseTuple(args, "s", &registrationKey))
+		return NULL;
+
+	fintsRegistrationKey = registrationKey;
+	#ifdef DEBUGSTDERR
+	if (fintsRegistrationKey == NULL) {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey not set!\n");
+	} else {
+		fprintf(stderr, "aqbanking_setRegistrationKey: fintsRegistrationKey set: %s\n", fintsRegistrationKey);
+	}
+	#endif
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+#endif
+
 static PyObject *aqbanking_chkiban(PyObject *self, PyObject *args)
 {
 	int res;
@@ -1530,7 +1639,9 @@ static PyObject *aqbanking_chkiban(PyObject *self, PyObject *args)
 static PyMethodDef AqBankingMethods[] = {
 	{"listacc", aqbanking_listacc, METH_VARARGS, "Get a list of accounts"},
 	{"chkiban", aqbanking_chkiban, METH_VARARGS, "Validates an IBAN"},
-
+	#ifdef SUPPORT_APPREGISTRATION
+	{"setRegistrationKey", aqbanking_setRegistrationKey, METH_VARARGS, "Set the FinTS registration key"},
+	#endif
 	{NULL, NULL, 0, NULL}
 };
 

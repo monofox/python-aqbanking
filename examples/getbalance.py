@@ -38,6 +38,9 @@ def password_cb(flags, token, title, text, minLen, maxLen):
 for f in aqbanking.listacc():
     print('Available configured banks: ', f.bank_name)
 
+# in order to consider the new rules in terms of FinTS registration code, you may need to set the
+# registration code accordingly:
+# aqbanking.setRegistrationKey('some characters')
 acc = aqbanking.Account(no='100254687', bank_code='35468754')
 acc.set_callbackLog(callback)
 acc.set_callbackPassword(password_cb)
@@ -48,3 +51,7 @@ if ret is not None:
         print(ret[0], ' ', ret[1])
     except TypeError:
         pass
+
+# cleanup and deallocate all callbacks for clean shutdown.
+acc.cleanup()
+del(acc)

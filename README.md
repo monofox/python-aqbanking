@@ -17,17 +17,21 @@ Dependencies
 ============
 
 The proper development packages are required for:
- - AqBanking >= 5.4.0
+ - AqBanking >= 5.8.1 (tested until 5.8.2)
  - Python >= 3.1
  - gwenhywfar >= 4.0.0
 
 For the installation, it is necessary to have the proper development packages installed (e.g. `apt-get install libaqbanking-dev libgwenhywfar60-dev`)
+
+Depending on your bank, you may need to update your bank account information (BPD) through aqhbci4 tool (refer to mailing list). Furthermore there might be a later release to support the TAN recording during balance / login.
 
 Install
 =======
 
 To install this library, just execute (append --user if it should not be installed systemwide):
 `python setup.py install`
+
+Alternative, you can install the library via PyPi: `pip install python-aqbanking`
 
 Please remember, that this library only works with Python 3.
 
@@ -42,6 +46,9 @@ And then you can verify the IBAN number e.g. with:
 
 And to list all configured accounts (you can not configure it through this library at the moment), you execute this command:
 `aqbanking.listacc()`
+
+Furthermore in order to communicate with your bank, you'll need to register your application at [FinTS](https://www.hbci-zka.de/register/prod_register.htm). You'll receive a code which must be given to the module like:
+`aqbanking.setRegistrationKey('some characters')`
 
 For all other functions, you need first to create an account:
 `acc = aqbanking.Account(no=157458624, bank_code=45021512)`
@@ -59,4 +66,9 @@ Known Bugs/Missing features
 Smartcard/Chipcard support meanwhile integrated. But no "text" that user has to enter something on the readers panel is provided. 
 
 The server certificate of the HTTPS connection is not validated at the moment, so do not use it for sensitive data, as man in the middle attack is possible without notice.
+
+Contributing
+============
+
+If you'd like to contribute, please fork the repository and use a feature branch. Pull requests are warmly welcome. We cannot cover everything from beginning. Your experience and expertise is necessary to make a awesome product out of it!
 
